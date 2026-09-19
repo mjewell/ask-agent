@@ -9,11 +9,12 @@ Use `python3 <plugin-root>/scripts/xagent.py`. Do not start provider CLIs direct
 
 ## Flow
 
-1. Select a provider. Use one named by the user. If unspecified, recommend Codex for direct repository coding/editing and Claude for an independent second opinion or provider-specific Claude capability; use the other provider than the current caller when an independent review is the purpose. Choose directly when that makes the decision clear; otherwise state the recommendation and ask which provider they want.
-2. Select model and effort. Honor an explicit choice. Otherwise inspect `models PROVIDER`, compare the task to the model descriptions, cost, account availability notes, and effort choices, then choose and pass the best clear option. Ask only when the quality/cost tradeoff is materially ambiguous.
-3. Select permission mode. Default to `read-only`; use `workspace-write` only for an implementation task; use `unrestricted` only inside an external sandbox.
-4. Start a new job, or use `--resume JOB` only to continue the same provider conversation.
-5. For detached work, inspect `status` and `logs`; use `stop` to cancel it.
+1. Select a provider. Use one named by the user. Otherwise, assess the task and recommend a provider, noting when the other available harness would provide a useful independent perspective. Ask the user to confirm or change that recommendation before launching.
+2. Choose the delegation mechanism. If the selected provider is the current harness and it supports native subagents, recommend a native subagent for ordinary same-harness work. Use XAgent when the selected provider is another provider, or when the user needs resumability, a full local transcript/audit record, or explicit background/lifecycle control. The user may explicitly choose XAgent instead.
+3. Select model and effort. Honor an explicit choice. Otherwise inspect `models PROVIDER`, compare the task to the model descriptions, cost, account availability notes, and effort choices, then choose and pass the best clear option. Ask only when the quality/cost tradeoff is materially ambiguous.
+4. Select permission mode. Default to `read-only`; use `workspace-write` only for an implementation task; use `unrestricted` only inside an external sandbox.
+5. Start a new job, or use `--resume JOB` only to continue the same provider conversation.
+6. For detached work, inspect `status` and `logs`; use `stop` to cancel it.
 
 ## Commands
 
@@ -32,7 +33,7 @@ Example:
 
 ```sh
 python3 <plugin-root>/scripts/xagent.py run codex "Review the current diff; report findings only." \
-  --cwd . --mode read-only --model gpt-5.3-codex --effort medium --timeout 900 --detach
+  --cwd . --mode read-only --model gpt-5.6-sol --effort medium --timeout 900 --detach
 ```
 
 `--provider-arg ARG` (or `--passthrough ARG`) may be repeated for native CLI options not owned by XAgent. Use one argv item per occurrence and `--provider-arg=--flag` for a value beginning with `-`. XAgent reserves output-format, session, model/effort, directory, and permission/sandbox flags because changing them would invalidate its guarantees.

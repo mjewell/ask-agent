@@ -2,6 +2,8 @@
 
 XAgent is a local, provider-neutral launcher for coding-agent CLIs. It is deliberately a small execution and audit layer, not an agent-to-agent conversation protocol. The calling agent decides what to ask and whether to continue a conversation; XAgent preserves that choice reliably.
 
+First choose the provider. When it is unspecified, recommend one based on the task and note when the other available harness offers a useful independent perspective; ask the user to confirm or change that choice. Then choose the delegation mechanism: prefer a native subagent for ordinary work targeting the current harness, and use XAgent for another provider, resumability, a complete local audit record, or explicit background/lifecycle control.
+
 ## What it guarantees
 
 - Every job gets a durable ID and directory under `.xagent/jobs/` (or `$XAGENT_HOME`). `job.json` records the exact invocation, working directory, policy, timeout, timestamps, PID, exit state, parent job, prompt-file reference, and captured native session ID.
@@ -16,7 +18,7 @@ XAgent is a local, provider-neutral launcher for coding-agent CLIs. It is delibe
 ```sh
 XAGENT="python3 /path/to/xagent/scripts/xagent.py"
 $XAGENT doctor
-$XAGENT run codex "Review this diff. Report findings only." --cwd /repo --mode read-only --model gpt-5.3-codex --effort medium --timeout 900 --detach
+$XAGENT run codex "Review this diff. Report findings only." --cwd /repo --mode read-only --model gpt-5.6-sol --effort medium --timeout 900 --detach
 $XAGENT status
 $XAGENT logs 20260101-120000-a1b2c3
 $XAGENT run codex "Reconsider finding 2 with this additional context..." --cwd /repo --mode read-only --resume 20260101-120000-a1b2c3
@@ -36,7 +38,7 @@ If a new task has no model/effort, the calling agent should run `xagent models`,
 Use repeated `--provider-arg` (or `--passthrough`) for any underlying CLI argument XAgent does not own. Each occurrence is one literal argv item, so it is shell-safe and does not reinterpret quoting:
 
 ```sh
-$XAGENT run codex "Review the diff." --cwd /repo --mode read-only --model gpt-5.3-codex --effort medium \
+$XAGENT run codex "Review the diff." --cwd /repo --mode read-only --model gpt-5.6-sol --effort medium \
   --provider-arg=--profile --provider-arg ci --provider-arg=--add-dir --provider-arg ../shared
 ```
 
@@ -66,6 +68,8 @@ The adapters do not fabricate a claim that `workspace-write` works as a security
 ## Add a provider
 
 Add one JSON file to `providers/`. It defines the executable, argv templates for a new and resumed task, a regex that captures the provider's native session ID from output, model/effort argument templates, the maintained model table, passthrough placement/reserved flags, and a minimal mapping for the three XAgent policy names. Templates may use `{cwd}`, `{prompt}`, `{session_id}`, and fields defined in a policy. Start from the provider's current `--help`; do not copy broad generic agent advice into the adapter.
+
+When adding a provider, extend the provider-selection guidance with the capabilities that actually distinguish it. Keep that guidance in this README rather than the runtime skill until the provider is installed and supported; the skill should only describe currently usable choices.
 
 For a provider with no resumable session ID, omit `session_id_regex` and document that `--resume` is unavailable. A production expansion should add a provider-specific parser when a provider emits a more structured session event.
 
