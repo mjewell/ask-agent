@@ -1,0 +1,40 @@
+{
+  "binary": "claude",
+  "prompt_transport": "stdin",
+  "model_args": ["--model", "{model}"],
+  "effort_args": ["--effort", "{effort}"],
+  "passthrough_position": 0,
+  "reserved_args": ["--print", "-p", "--output-format", "--resume", "-r", "--permission-mode", "--permission-prompts", "--model", "--effort"],
+  "catalog_as_of": "2026-09-19",
+  "models": [
+    {
+      "id": "claude-sonnet-5",
+      "input_usd_per_mtok": 2.0,
+      "output_usd_per_mtok": 10.0,
+      "effort_options": ["low", "medium", "high", "xhigh", "max"],
+      "description": "Balanced coding and reasoning model; CLI alias: sonnet."
+    },
+    {
+      "id": "claude-opus-5",
+      "input_usd_per_mtok": 5.0,
+      "output_usd_per_mtok": 25.0,
+      "effort_options": ["low", "medium", "high", "xhigh", "max"],
+      "description": "High-capability coding and knowledge-work model; CLI alias: opus."
+    },
+    {
+      "id": "claude-fable-5-1",
+      "input_usd_per_mtok": 10.0,
+      "output_usd_per_mtok": 50.0,
+      "effort_options": ["low", "medium", "high", "xhigh", "max"],
+      "description": "Most capable current coding and knowledge-work model; CLI alias: fable."
+    }
+  ],
+  "new": ["--print", "--verbose", "--output-format", "stream-json", "--permission-mode", "{permission}", "--permission-prompts", "none"],
+  "resume": ["--print", "--verbose", "--output-format", "stream-json", "--resume", "{session_id}", "--permission-prompts", "none"],
+  "session_id_regex": "\\\"session_id\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"",
+  "policies": {
+    "read-only": { "permission": "plan" },
+    "workspace-write": { "permission": "acceptEdits" },
+    "unrestricted": { "permission": "bypassPermissions" }
+  }
+}

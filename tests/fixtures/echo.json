@@ -1,0 +1,11 @@
+{
+  "binary": "python3",
+  "prompt_transport": "stdin",
+  "models": [{"id": "echo", "input_usd_per_mtok": 0, "output_usd_per_mtok": 0, "effort_options": ["low"], "description": "test"}],
+  "new": ["-c", "import json,sys; print(json.dumps({{'session_id':'fake-session'}})); print(sys.stdin.read(), file=sys.stderr)"],
+  "resume": ["-c", "import json,sys; print(json.dumps({{'session_id':'fake-session'}})); print(sys.stdin.read(), file=sys.stderr)"],
+  "session_id_regex": "\\\"session_id\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"",
+  "policies": {
+    "read-only": {}, "workspace-write": {}, "unrestricted": {}
+  }
+}

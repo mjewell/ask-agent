@@ -1,0 +1,18 @@
+{
+  "name": "xagent",
+  "version": "0.1.0",
+  "description": "Durable, auditable cross-agent CLI handoffs.",
+  "author": {
+    "name": "Michael Jewell"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "XAgent",
+    "shortDescription": "Delegate tasks to Claude, Codex, and other CLIs.",
+    "longDescription": "Starts, resumes, monitors, and stops bounded agent CLI jobs with local audit logs.",
+    "developerName": "Michael Jewell",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use XAgent to delegate this task to another coding-agent CLI."
+  }
+}
