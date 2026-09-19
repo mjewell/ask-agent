@@ -8,18 +8,18 @@
   "catalog_as_of": "2026-09-19",
   "models": [
     {
-      "id": "gpt-5.3-codex",
-      "input_usd_per_mtok": 1.75,
-      "output_usd_per_mtok": 14.0,
-      "effort_options": ["low", "medium", "high", "xhigh"],
-      "description": "Agentic coding model for API access; this local ChatGPT-account Codex login rejects it."
-    },
-    {
       "id": "gpt-5.6-sol",
       "input_usd_per_mtok": 4.0,
       "output_usd_per_mtok": 20.0,
       "effort_options": ["none", "low", "medium", "high", "xhigh", "max"],
       "description": "Flagship general model for complex professional work."
+    },
+    {
+      "id": "gpt-6-astra",
+      "input_usd_per_mtok": 10.0,
+      "output_usd_per_mtok": 50.0,
+      "effort_options": ["low", "medium", "high", "xhigh", "max", "ultra"],
+      "description": "Most capable option for complex, demanding work."
     },
     {
       "id": "gpt-5.6-terra",

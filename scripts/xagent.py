@@ -239,9 +239,10 @@ def cmd_models(args):
     for name in names:
         spec = load_provider(name)
         print(f"{name} catalog (maintained {spec.get('catalog_as_of', 'unknown')}):")
-        print("MODEL\tINPUT $/MTok\tOUTPUT $/MTok\tEFFORT\tDESCRIPTION")
+        print("CLI CHOICE\tMODEL\tINPUT $/MTok\tOUTPUT $/MTok\tEFFORT\tDESCRIPTION")
         for model in spec.get("models", []):
-            print(f"{model['id']}\t{model.get('input_usd_per_mtok', '—')}\t{model.get('output_usd_per_mtok', '—')}\t"
+            choices = ",".join(model.get("cli_choices", [model["id"]]))
+            print(f"{choices}\t{model['id']}\t{model.get('input_usd_per_mtok', '—')}\t{model.get('output_usd_per_mtok', '—')}\t"
                   f"{','.join(model['effort_options'])}\t{model['description']}")
         print("Catalog entries are maintained choices, not an entitlement check; edit providers/ when you update it.\n")
 

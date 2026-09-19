@@ -27,7 +27,7 @@ $XAGENT run claude "Threat-model this authentication flow." --cwd /repo --mode r
 
 ## Model choice
 
-Each `providers/<provider>.json` carries a small, user-maintained catalog, stamped with `catalog_as_of`. `xagent models PROVIDER` presents a table of model ID, input/output API-token cost, supported effort options, and purpose. The first catalog is based on official provider documentation as of 2026-09-19; update the JSON when your available models, pricing, or account changes. It is not an entitlement check: the runner accepts any provider-native model string. The catalog has no hidden recommendation metadata.
+Each `providers/<provider>.json` carries a small, user-maintained catalog, stamped with `catalog_as_of`. `xagent models PROVIDER` presents a table of CLI choice/alias, model ID, input/output API-token cost, supported effort options, and purpose. The first catalog is based on official provider documentation and the local CLI picker as of 2026-09-19; update the JSON when your available models, pricing, or account changes. It is not an entitlement check: the runner accepts any provider-native model string. The catalog has no hidden recommendation metadata.
 
 If a new task has no model/effort, the calling agent should run `xagent models`, compare the task’s complexity and cost sensitivity with the table, choose and pass the best clear option, and proceed. Ask the user only when the provider is unknown or the quality/cost tradeoff is materially ambiguous. The runner declines to launch until both are specified (or until `--model default --effort default` explicitly requests provider defaults). The selected model and effort are persisted in each job record for auditability.
 
