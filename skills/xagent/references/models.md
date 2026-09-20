@@ -28,6 +28,12 @@ working around it.
 | `claude-fable-5-1` | `fable` | 10.0 | 50.0 | low, medium, high, xhigh, max | Hardest, longest-running tasks. Requires usage credits. |
 | `claude-haiku-4-5` | `haiku` | 1.0 | 5.0 | low, medium, high, xhigh, max | Fastest option for quick answers. |
 
+## agy (Gemini)
+
+`agy models` prints the live catalog for the account, so use that rather than a table here. Most model ids
+encode an effort tier (`gemini-3.8-flash-high`, `-medium`, `-low`); see
+[agy-cli.md](agy-cli.md) for how that interacts with the separate `--effort` flag.
+
 ## Choosing
 
 Match the model to the task's difficulty, then set effort for how much thinking it deserves:

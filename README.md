@@ -84,6 +84,10 @@ Nothing to configure. Write a reference file under `skills/xagent/references/` c
 invocation, the sandbox or permission controls, the flags worth knowing, how to resume, and the `jq` filter
 for the final message. Then add it to the provider-selection step in [SKILL.md](skills/xagent/SKILL.md).
 
+Check how the provider takes its prompt. Codex and Claude Code read stdin, so `--prompt-file` feeds them;
+agy takes the prompt as the value of `--print`, so its jobs omit `--prompt-file` and the prompt is recorded
+in `argv` instead of `prompt.txt`. Both work — the reference just has to say which.
+
 If the provider can accept a caller-assigned session id, say so in the reference and recommend it over
 recovery: xagent's recovery is a generic scan for the first root-level `session_id`, `thread_id`, or
 `conversation_id` in the output, which suits today's CLIs but is inference, not a contract. Also check

@@ -46,8 +46,8 @@ If the user named one, use it. Otherwise recommend one based on the task and say
 other provider would give a genuinely independent read — different training, different failure modes, which
 is the whole point of a cross-check.
 
-Before recommending, confirm the CLI exists (`command -v codex`, `command -v claude`). Do not suggest
-delegating to something that is not installed.
+Before recommending, confirm the CLI exists (`command -v codex`, `command -v claude`, `command -v agy`).
+Do not suggest delegating to something that is not installed.
 
 Ask the user to confirm the provider before launching. This spends their money on their account.
 
@@ -66,6 +66,7 @@ Read the reference for the provider you chose:
 
 - [references/codex-cli.md](references/codex-cli.md)
 - [references/claude-cli.md](references/claude-cli.md)
+- [references/agy-cli.md](references/agy-cli.md) — Gemini; the binary is `agy`
 
 Each one gives a recommended invocation and the common flags worth knowing for this kind of job. Start from
 the recommended invocation and adjust.
@@ -80,8 +81,12 @@ are deliberately short and will lag the CLIs; the CLI's own help is the source o
 
 ### 4. Write the prompt to a file
 
-Always pass the prompt with `--prompt-file`. Never build a long prompt inline in a shell command — quoting,
-`$`, backticks, and heredoc terminators all bite eventually.
+Pass the prompt with `--prompt-file` wherever the provider reads stdin, which covers Codex and Claude Code.
+Never build a long prompt inline in a shell command — quoting, `$`, backticks, and heredoc terminators all
+bite eventually.
+
+Some providers take the prompt in argv instead; agy is one. Omit `--prompt-file` for those, and the prompt
+is recorded in the job's `argv` field rather than in `prompt.txt`. The provider reference says which.
 
 ### 5. Run it
 
