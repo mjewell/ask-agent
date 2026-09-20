@@ -40,17 +40,19 @@ Everything after `--` is the provider's command, passed through untouched.
   VM and pass only the directory you intend.
 - **It does not choose flags for you.** No adapter, no templates, no policy mapping. The skill recommends,
   you decide, xagent records.
-- **It does not resume for you.** It recovers the native session id from saved output into `job.json`, so
-  `status` can show it; you write the provider's own resume command. `--parent JOB` records the lineage.
+- **It does not resume for you.** It recovers the native session id from the output and hands it to you via
+  `session` and `status`; you write the provider's own resume command. `--parent JOB` records the lineage.
 - **It does not refuse anything.** If a command lacks a structured-output flag, xagent warns that `session`
   and log parsing will not work, then runs it. There is no denylist, because a refusal would prevent
   nothing — the same CLI is one Bash call away.
 - **It does not wrap your shell.** Job state and output are ordinary files, so `cat`, `tail -f`, `grep`,
   and `jq` work on them directly. There is no command for reading a field that `job.json` already holds.
 
-`status` is the exception, and the reason is worth knowing: it reports `abandoned` for a job whose process
-is gone, which is a fact about the live process table rather than about the file. Reading `job.json` for a
-runner that was hard-killed would report `running` forever.
+`status` and `session` are the exceptions, and the reason is the same for both: each reports something
+`job.json` cannot hold. `status` reports `abandoned` for a job whose process is gone — a fact about the live
+process table, so reading the file directly would say `running` forever. `session` scans the output when the
+file has no id yet, which is the case for every job that is still running and for any that died before
+recording one.
 
 ## Commands
 
@@ -59,6 +61,7 @@ runner that was hard-killed would report `running` forever.
 | `run [--cwd DIR] [--timeout N] [--prompt-file PATH] [--parent JOB] -- CMD …` | Run a command. Prints the job id. |
 | `status [JOB]` | Job state, exit code, session id. No argument lists everything. |
 | `path JOB` | Print the job directory, which holds `job.json`, `prompt.txt`, `stdout.log`, `stderr.log`. |
+| `session JOB` | Print the native session id, including while the job is still running. |
 | `stop JOB` | Terminate the job's process group. |
 
 `--prompt-file` is piped to the command's stdin and saved beside the log; `-` reads this process's stdin.
@@ -67,6 +70,11 @@ quoting.
 
 `run` blocks. Background it the way you would any long command; there is no special mode for that, and
 `stop` works either way.
+
+That is a deliberate tradeoff. An earlier design watched the calling process and cancelled the job when it
+exited, so a backgrounded job died with its caller. That watch keyed off whichever shell happened to spawn
+xagent, which made it fire instantly in some shells and never in others, so it is gone. A backgrounded job
+now outlives its caller. `--timeout` bounds it and `stop` ends it; nothing else will.
 
 Statuses: `succeeded`, `failed`, `timed_out`, `cancelled`, `abandoned`, `corrupt`.
 

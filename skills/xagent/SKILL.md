@@ -26,8 +26,9 @@ Use XAgent when:
 - the task is long enough to want a **timeout and a stop switch**;
 - the user wants to **resume** a provider conversation later.
 
-`status` is the one command that tells you something the files do not: a job whose process died without
-recording an outcome reports as `abandoned` rather than `running`.
+`status` and `session` are the two commands that tell you something the files do not. A job whose process
+died without recording an outcome reports as `abandoned` rather than `running`, and `session` finds the id
+by scanning the output when `job.json` does not have it yet — which is always the case mid-run.
 
 Prefer a **native subagent** for ordinary work in the current harness. It is faster and cheaper, and it
 shares your context. XAgent's value is crossing to another provider or keeping a record — not delegation
@@ -102,6 +103,7 @@ xagent needs no special mode for that, and `stop` works either way.
 | `run … -- CMD …` | Run a provider command, recorded and time-bounded. Prints the job id. |
 | `status [JOB]` | Job state, exit code, and recovered session id. No argument lists every job. |
 | `path JOB` | Print the job directory. Read the files under it with `cat`, `tail -f`, or `jq`. |
+| `session JOB` | Print the native session id, for building a resume command. Works mid-run. |
 | `stop JOB` | Terminate the job's whole process group. |
 
 Job state lives in `.xagent/jobs/<id>/` (or `$XAGENT_HOME`): `job.json`, `prompt.txt`, `stdout.log`,
@@ -131,7 +133,7 @@ command:
 
 ```sh
 job=20260101-120000-a1b2c3
-sid=$(jq -r .session_id "$(python3 <plugin-root>/scripts/xagent.py path $job)/job.json")
+sid=$(python3 <plugin-root>/scripts/xagent.py session $job)
 python3 <plugin-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/followup.md --parent $job \
   -- codex exec resume "$sid" --json -s read-only -
 ```
@@ -140,9 +142,7 @@ python3 <plugin-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/follo
 
 `--parent` records the lineage in the job file. It does not change the command.
 
-Session recovery needs structured output; `run` warns when the command did not ask for it. If
-`job.json` has no `session_id` — which happens only if xagent itself was killed before it finished — the
-provider reference shows how to pull the id straight out of `stdout.log`.
+Session recovery needs structured output; `run` warns when the command did not ask for it.
 
 ## Safety
 

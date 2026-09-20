@@ -62,22 +62,23 @@ anything the task needs.
 ## Resuming
 
 ```sh
-dir=$(python3 <plugin-root>/scripts/xagent.py path JOB)
-sid=$(jq -r .session_id "$dir/job.json")
+sid=$(python3 <plugin-root>/scripts/xagent.py session JOB)
 python3 <plugin-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/followup.md --parent JOB \
   -- claude --print --verbose --output-format stream-json --resume "$sid" \
      --permission-mode plan --permission-prompts none
 ```
 
-The session id appears as `session_id` on the `system`/`init` event. XAgent records it into `job.json`, and
-`status` prints it. If it is missing there, read it straight from the log:
+The session id appears as `session_id` on the `system`/`init` event. `xagent session` recovers it, and `status` prints
+it too. To pull it out yourself:
 
 ```sh
 jq -r 'select(.type == "system" and .subtype == "init") | .session_id' "$dir/stdout.log"
 ```
 
-Alternatively, pass `--session-id "$(uuidgen | tr A-Z a-z)"` on the first run so you already know the id
-without recovering it. Useful when you intend to resume and want the id before the job finishes.
+**When deterministic resumption matters, prefer setting the id yourself.** Pass
+`--session-id "$(uuidgen | tr A-Z a-z)"` on the first run and you know the id up front, with nothing to
+recover. XAgent's recovery is a generic scan — it takes the first root-level `session_id`/`thread_id` it
+sees in the output — which is right for today's CLIs but is inference, not a contract.
 
 Re-pass the permission mode on a resume. A resumed session does not necessarily keep the original's posture,
 and the recorded command should show what the continuation actually ran under.

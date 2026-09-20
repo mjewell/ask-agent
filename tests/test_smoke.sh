@@ -60,10 +60,21 @@ ok "--prompt-file - reads stdin"
 
 # --- a session id is recovered from structured output after the fact --------------
 job=$($xagent run --cwd . -- python3 -c 'import json; print(json.dumps({"type":"thread.started","thread_id":"thr_abc123"}))')
-grep -q '"session_id": "thr_abc123"' "$XAGENT_HOME/jobs/$job/job.json" || fail "session id not recorded in job.json"
+test "$($xagent session "$job")" = "thr_abc123" || fail "session id was not recovered"
 $xagent status "$job" | grep -q '"session_id": "thr_abc123"' || fail "session id not in status"
-test "$(jq -r .session_id "$XAGENT_HOME/jobs/$job/job.json")" = "thr_abc123" || fail "documented resume recipe does not work"
+grep -q '"session_id": "thr_abc123"' "$XAGENT_HOME/jobs/$job/job.json" || fail "session id not recorded in job.json"
 ok "session id is recovered from saved output"
+
+# --- session is readable mid-run, when job.json does not have it yet --------------
+$xagent run --cwd . --timeout 20 -- python3 -u -c 'import json,time; print(json.dumps({"type":"thread.started","thread_id":"thr_live"})); time.sleep(15)' >"$test_root/live" 2>/dev/null &
+python3 -c 'import time; time.sleep(3)'
+live=$(cat "$test_root/live")
+python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('session_id') is None else 1)" \
+  "$XAGENT_HOME/jobs/$live/job.json" || fail "precondition: job.json should not hold the id yet"
+test "$($xagent session "$live")" = "thr_live" || fail "session should find the id mid-run"
+$xagent status "$live" | grep -q '"session_id": "thr_live"' || fail "status should agree mid-run"
+$xagent stop "$live"; wait 2>/dev/null || true
+ok "session and status find the id mid-run"
 
 # --- lineage is recorded when a job continues another -----------------------------
 child=$($xagent run --cwd . --parent "$job" -- python3 -c 'print("resumed")')
@@ -83,6 +94,20 @@ job=$($xagent run --cwd . --timeout 1 -- sh -c "python3 -c 'import time; time.sl
 $xagent status "$job" | grep -q '"status": "timed_out"' || fail "expected timed_out status"
 pgrep -f "$marker" >/dev/null && fail "grandchild survived the timeout" || true
 ok "timeout kills the whole process group"
+
+# --- SIGTERM to the runner kills the child and still records an outcome -----------
+marker="xagent-test-sigterm-$$"
+$xagent run --cwd . --timeout 120 -- sh -c "python3 -c 'import time; time.sleep(60)' # $marker" >"$test_root/tjob" 2>/dev/null &
+runner=$!
+python3 -c 'import time; time.sleep(2)'
+tjob=$(cat "$test_root/tjob")
+pgrep -f "$marker" >/dev/null || fail "precondition: child should be running"
+kill -TERM "$runner"
+python3 -c 'import time; time.sleep(2)'
+pgrep -f "$marker" >/dev/null && { pkill -f "$marker"; fail "SIGTERM orphaned the child"; } || true
+$xagent status "$tjob" | grep -q '"status": "cancelled"' || fail "SIGTERM did not record an outcome"
+wait 2>/dev/null || true
+ok "SIGTERM kills the child and records an outcome"
 
 # --- a job whose process vanished reports as abandoned, not running ---------------
 job=$($xagent run --cwd . -- python3 -c 'print("done")')

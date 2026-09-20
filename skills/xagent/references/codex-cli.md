@@ -48,26 +48,26 @@ could pass them directly. If the user asks for a different mode, use it and say 
 | `--output-schema FILE` | JSON Schema for the final response, when you need a specific shape back. |
 | `-p, --profile NAME` | Layers `$CODEX_HOME/<name>.config.toml` over the user's base config. |
 | `--skip-git-repo-check` | Required when the working directory is not a Git repository. |
-| `exec resume THREAD_ID` | Continues an existing thread. |
+| `exec resume THREAD_ID` | Continues an existing thread. Takes `-c` but **not** `-s`. |
 
 ## Resuming
 
 ```sh
-dir=$(python3 <plugin-root>/scripts/xagent.py path JOB)
-sid=$(jq -r .session_id "$dir/job.json")
+sid=$(python3 <plugin-root>/scripts/xagent.py session JOB)
 python3 <plugin-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/followup.md --parent JOB \
-  -- codex exec resume "$sid" --json -s read-only -
+  -- codex exec resume "$sid" --json -c sandbox_mode="read-only" -
 ```
 
-Codex calls this a thread id. XAgent records it into `job.json` as `session_id`, and `status` prints it.
-If it is missing there, read it straight from the log:
+Codex calls this a thread id. `xagent session` recovers it, and `status` prints it too.
+To pull it out yourself:
 
 ```sh
 jq -r 'select(.type == "thread.started") | .thread_id' "$dir/stdout.log"
 ```
 
-Re-pass the sandbox flag on a resume. A resumed thread does not necessarily keep the original session's
-settings, and the recorded command should show what the continuation actually ran under.
+**`resume` does not accept `-s/--sandbox`** — it rejects the flag outright. Re-pin the sandbox with
+`-c sandbox_mode="…"` instead. Do re-pin it: a resumed thread does not necessarily keep the original
+session's settings, and the recorded command should show what the continuation actually ran under.
 
 ## Reading the result
 
