@@ -11,8 +11,9 @@ ok() { echo "ok - $1"; }
 # --- a plain command runs, is recorded, and its output is captured -----------------
 job=$($xagent run --cwd . -- python3 -c 'print("hello from the provider")')
 $xagent status "$job" | grep -q '"status": "succeeded"' || fail "job did not succeed"
-$xagent logs "$job" | grep -q 'hello from the provider' || fail "stdout was not captured"
-ok "runs a command and captures stdout"
+grep -q 'hello from the provider' "$XAGENT_HOME/jobs/$job/stdout.log" || fail "stdout was not captured"
+test "$($xagent path "$job")" = "$(cd "$XAGENT_HOME/jobs/$job" && pwd -P)" || fail "path did not resolve to the job dir"
+ok "runs a command, captures stdout, and reports its directory"
 
 # --- the job directory and its contents are private -------------------------------
 python3 - "$XAGENT_HOME/jobs/$job" <<'PY' || exit 1
@@ -35,8 +36,8 @@ ok "argv is recorded verbatim"
 
 # --- stderr is captured separately ------------------------------------------------
 job=$($xagent run --cwd . -- python3 -c 'import sys; print("to stderr", file=sys.stderr)') || true
-$xagent logs "$job" --stderr | grep -q 'to stderr' || fail "stderr was not captured"
-test -z "$($xagent logs "$job")" || fail "stdout should be empty"
+grep -q 'to stderr' "$XAGENT_HOME/jobs/$job/stderr.log" || fail "stderr was not captured"
+test ! -s "$XAGENT_HOME/jobs/$job/stdout.log" || fail "stdout should be empty"
 ok "stdout and stderr are captured separately"
 
 # --- a non-zero exit is recorded as failed, not hidden ----------------------------
@@ -48,13 +49,13 @@ ok "non-zero exit is recorded"
 # --- the prompt file is piped to the command's stdin ------------------------------
 printf 'prompt from a file' > "$test_root/prompt.txt"
 job=$($xagent run --cwd . --prompt-file "$test_root/prompt.txt" -- python3 -c 'import sys; print(sys.stdin.read())')
-$xagent logs "$job" | grep -q 'prompt from a file' || fail "prompt file was not piped to stdin"
+grep -q 'prompt from a file' "$XAGENT_HOME/jobs/$job/stdout.log" || fail "prompt file was not piped to stdin"
 grep -q 'prompt from a file' "$XAGENT_HOME/jobs/$job/prompt.txt" || fail "prompt was not saved"
 ok "--prompt-file is piped to stdin and saved"
 
 # --- `--prompt-file -` reads this process's stdin ---------------------------------
 job=$(printf 'prompt from stdin' | $xagent run --cwd . --prompt-file - -- python3 -c 'import sys; print(sys.stdin.read())')
-$xagent logs "$job" | grep -q 'prompt from stdin' || fail "stdin prompt was not piped through"
+grep -q 'prompt from stdin' "$XAGENT_HOME/jobs/$job/stdout.log" || fail "stdin prompt was not piped through"
 ok "--prompt-file - reads stdin"
 
 # --- a session id is recovered from structured output after the fact --------------
@@ -96,7 +97,7 @@ $xagent status "$job" | grep -q '"status": "abandoned"' || fail "stop did not pe
 ok "a vanished job is reported and recorded as abandoned"
 
 # --- input validation -------------------------------------------------------------
-$xagent logs ../../etc 2>/dev/null && fail "path traversal should be rejected" || true
+$xagent path ../../etc 2>/dev/null && fail "path traversal should be rejected" || true
 $xagent run --cwd . -- 2>/dev/null && fail "an empty provider command should be rejected" || true
 $xagent run --cwd /nope/nowhere -- python3 -c 'pass' 2>/dev/null && fail "a bad --cwd should be rejected" || true
 $xagent run --cwd . --timeout 0 -- python3 -c 'pass' 2>/dev/null && fail "a zero timeout should be rejected" || true
@@ -104,7 +105,7 @@ ok "invalid input is rejected"
 
 # --- flags after `--` reach the provider, not xagent ------------------------------
 job=$($xagent run --cwd . -- python3 -c 'import sys; print(sys.argv[1:])' --timeout --cwd --json)
-$xagent logs "$job" | grep -q -- "--timeout" || fail "provider flags were eaten by xagent"
+grep -q -- "--timeout" "$XAGENT_HOME/jobs/$job/stdout.log" || fail "provider flags were eaten by xagent"
 ok "flags after -- are passed through untouched"
 
 echo

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Record and bound a coding-agent CLI invocation.
 
-XAgent does not build the provider command. You give it one; it runs that command
-exactly as written, captures both streams to files, enforces a timeout, and keeps a
-durable record of what ran. Knowledge about which flags a provider takes lives in the
-xagent skill, not here.
+The caller builds the provider command, with help from the xagent skill; this runner
+executes it exactly as written, captures both streams to files, enforces a timeout, and
+keeps a durable record of what ran. Knowledge about which flags a provider takes lives
+in the skill, not here.
 """
 from __future__ import annotations
 
@@ -168,19 +168,13 @@ def cmd_status(args):
         fields = {key: data.get(key) for key in ("job", "exit_code", "session_id", "cwd", "created_at", "finished_at")}
         print(json.dumps({**fields, "status": effective_status(job, data)}, sort_keys=True))
 
-def cmd_logs(args):
-    name = "stderr.log" if args.stderr else "stdout.log"
-    path = job_dir(args.job) / name
-    if not path.is_file(): raise SystemExit(f"job {args.job} has no {name}")
-    sys.stdout.buffer.write(path.read_bytes())
-
 def cmd_path(args):
     print(job_dir(args.job))
 
 def cmd_session(args):
     job = check_job(args.job)
     found = job_data(job).get("session_id") or find_session(job)
-    if not found: raise SystemExit("no session id found in this job's output; check `xagent logs` directly")
+    if not found: raise SystemExit("no session id found in this job's output; read stdout.log under `xagent path` directly")
     print(found)
 
 def cmd_stop(args):
@@ -210,14 +204,13 @@ def main():
     run.add_argument("--prompt-file", metavar="PATH", help="file piped to the command's stdin; `-` reads this process's stdin")
     run.add_argument("--parent", metavar="JOB", help="record this job as a continuation of an earlier one")
     status = sub.add_parser("status", help="show job state"); status.add_argument("job", nargs="?")
-    logs = sub.add_parser("logs", help="print a job's captured output")
-    logs.add_argument("job"); logs.add_argument("--stderr", action="store_true", help="print stderr instead of stdout")
-    path = sub.add_parser("path", help="print a job's directory"); path.add_argument("job")
+    path = sub.add_parser("path", help="print a job's directory, which holds stdout.log and stderr.log")
+    path.add_argument("job")
     session = sub.add_parser("session", help="print the native session id found in a job's output"); session.add_argument("job")
     stop = sub.add_parser("stop", help="terminate a running job's process group"); stop.add_argument("job")
     args = parser.parse_args(mine)
     args.argv = provider_argv
-    return {"run": cmd_run, "status": cmd_status, "logs": cmd_logs,
+    return {"run": cmd_run, "status": cmd_status,
             "path": cmd_path, "session": cmd_session, "stop": cmd_stop}[args.action](args)
 
 if __name__ == "__main__": raise SystemExit(main())

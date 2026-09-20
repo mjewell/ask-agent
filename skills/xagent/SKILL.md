@@ -98,8 +98,7 @@ xagent needs no special mode for that, and `stop` works either way.
 | --- | --- |
 | `run … -- CMD …` | Run a provider command, recorded and time-bounded. Prints the job id. |
 | `status [JOB]` | Job state, exit code, and recovered session id. No argument lists every job. |
-| `logs JOB [--stderr]` | Print captured output. The files are plain, so `tail -f` and `jq` work directly. |
-| `path JOB` | Print the job directory, for reading the logs yourself. |
+| `path JOB` | Print the job directory. Read `stdout.log` / `stderr.log` under it with `cat`, `tail -f`, or `jq`. |
 | `session JOB` | Print the native session id, for building a resume command. |
 | `stop JOB` | Terminate the job's whole process group. |
 
@@ -108,8 +107,17 @@ Job state lives in `.xagent/jobs/<id>/` (or `$XAGENT_HOME`): `job.json`, `prompt
 
 ## Reading the result
 
-Provider output is saved raw. With structured output requested, parse it with `jq` — each provider reference
-gives the exact filter for pulling out the final assistant message.
+Provider output is saved raw to `stdout.log` and `stderr.log` in the job directory. They are ordinary
+files, so read them however you like:
+
+```sh
+dir=$(python3 <plugin-root>/scripts/xagent.py path JOB)
+tail -f "$dir/stdout.log"     # while it runs
+cat "$dir/stderr.log"         # what the CLI complained about
+```
+
+With structured output requested, parse it with `jq` — each provider reference gives the exact filter for
+pulling out the final assistant message.
 
 `status` reports one of: `succeeded`, `failed`, `timed_out`, `cancelled`, `abandoned` (the process vanished
 without recording an outcome), or `corrupt`.

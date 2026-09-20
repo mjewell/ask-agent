@@ -45,6 +45,8 @@ Everything after `--` is the provider's command, passed through untouched.
 - **It does not refuse anything.** If a command lacks a structured-output flag, xagent warns that `session`
   and log parsing will not work, then runs it. There is no denylist, because a refusal would prevent
   nothing — the same CLI is one Bash call away.
+- **It does not wrap your shell.** Output lands in ordinary files, so `cat`, `tail -f`, `grep`, and `jq`
+  work on them directly. There is no `logs` command because there is nothing for one to add.
 
 ## Commands
 
@@ -52,8 +54,7 @@ Everything after `--` is the provider's command, passed through untouched.
 | --- | --- |
 | `run [--cwd DIR] [--timeout N] [--prompt-file PATH] [--parent JOB] -- CMD …` | Run a command. Prints the job id. |
 | `status [JOB]` | Job state, exit code, session id. No argument lists everything. |
-| `logs JOB [--stderr]` | Print captured output. |
-| `path JOB` | Print the job directory. |
+| `path JOB` | Print the job directory, which holds `stdout.log` and `stderr.log`. |
 | `session JOB` | Print the recovered native session id. |
 | `stop JOB` | Terminate the job's process group. |
 
