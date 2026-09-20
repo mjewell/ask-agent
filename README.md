@@ -40,13 +40,17 @@ Everything after `--` is the provider's command, passed through untouched.
   VM and pass only the directory you intend.
 - **It does not choose flags for you.** No adapter, no templates, no policy mapping. The skill recommends,
   you decide, xagent records.
-- **It does not resume for you.** It recovers the native session id from saved output; you write the
-  provider's own resume command. `--parent JOB` records the lineage.
+- **It does not resume for you.** It recovers the native session id from saved output into `job.json`, so
+  `status` can show it; you write the provider's own resume command. `--parent JOB` records the lineage.
 - **It does not refuse anything.** If a command lacks a structured-output flag, xagent warns that `session`
   and log parsing will not work, then runs it. There is no denylist, because a refusal would prevent
   nothing — the same CLI is one Bash call away.
-- **It does not wrap your shell.** Output lands in ordinary files, so `cat`, `tail -f`, `grep`, and `jq`
-  work on them directly. There is no `logs` command because there is nothing for one to add.
+- **It does not wrap your shell.** Job state and output are ordinary files, so `cat`, `tail -f`, `grep`,
+  and `jq` work on them directly. There is no command for reading a field that `job.json` already holds.
+
+`status` is the exception, and the reason is worth knowing: it reports `abandoned` for a job whose process
+is gone, which is a fact about the live process table rather than about the file. Reading `job.json` for a
+runner that was hard-killed would report `running` forever.
 
 ## Commands
 
@@ -54,8 +58,7 @@ Everything after `--` is the provider's command, passed through untouched.
 | --- | --- |
 | `run [--cwd DIR] [--timeout N] [--prompt-file PATH] [--parent JOB] -- CMD …` | Run a command. Prints the job id. |
 | `status [JOB]` | Job state, exit code, session id. No argument lists everything. |
-| `path JOB` | Print the job directory, which holds `stdout.log` and `stderr.log`. |
-| `session JOB` | Print the recovered native session id. |
+| `path JOB` | Print the job directory, which holds `job.json`, `prompt.txt`, `stdout.log`, `stderr.log`. |
 | `stop JOB` | Terminate the job's process group. |
 
 `--prompt-file` is piped to the command's stdin and saved beside the log; `-` reads this process's stdin.
@@ -72,6 +75,10 @@ Statuses: `succeeded`, `failed`, `timed_out`, `cancelled`, `abandoned`, `corrupt
 Nothing to configure. Write a reference file under `skills/xagent/references/` covering the recommended
 invocation, the sandbox or permission controls, the flags worth knowing, how to resume, and the `jq` filter
 for the final message. Then add it to the provider-selection step in [SKILL.md](skills/xagent/SKILL.md).
+
+Avoid naming a reference `claude.md` or `agents.md`: on a case-insensitive filesystem those collide with
+`CLAUDE.md` and `AGENTS.md`, and an agent working in this repo may load the file as project instructions.
+Use `claude-code.md`, `codex-cli.md`, and so on.
 
 Keep references short. They will lag the CLI, and the skill already tells the agent to run `--help` when
 something is missing — that hedge ages better than any schema.

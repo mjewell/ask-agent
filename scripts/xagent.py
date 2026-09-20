@@ -73,7 +73,11 @@ def process_matches_job(pid, job):
     except (OSError, subprocess.TimeoutExpired): return False
 
 def find_session(job):
-    """Recover a native session id from saved output, after the fact rather than mid-stream."""
+    """Recover a native session id from saved output, after the fact rather than mid-stream.
+
+    This is the one thing a reader cannot get from job.json alone, so it is recorded there
+    on completion and surfaced by `status`.
+    """
     path = job_dir(job) / "stdout.log"
     if not path.is_file(): return None
     with path.open(encoding="utf-8", errors="replace") as source:
@@ -113,8 +117,8 @@ def cmd_run(args):
     })
     print(job, flush=True)
     if not any(hint in item for item in args.argv for hint in STRUCTURED_HINTS):
-        print(f"xagent: {args.argv[0]} was not asked for structured output; `xagent session` and machine "
-              f"parsing of the log will not work for this job", file=sys.stderr)
+        print(f"xagent: {args.argv[0]} was not asked for structured output; no session id will be "
+              f"recovered for this job, and its log will not be machine-parsable", file=sys.stderr)
     return execute(job)
 
 def execute(job):
@@ -171,12 +175,6 @@ def cmd_status(args):
 def cmd_path(args):
     print(job_dir(args.job))
 
-def cmd_session(args):
-    job = check_job(args.job)
-    found = job_data(job).get("session_id") or find_session(job)
-    if not found: raise SystemExit("no session id found in this job's output; read stdout.log under `xagent path` directly")
-    print(found)
-
 def cmd_stop(args):
     job = check_job(args.job); data = job_data(job)
     if data.get("status") != "running": raise SystemExit(f"job is not running (status: {data.get('status')})")
@@ -206,11 +204,10 @@ def main():
     status = sub.add_parser("status", help="show job state"); status.add_argument("job", nargs="?")
     path = sub.add_parser("path", help="print a job's directory, which holds stdout.log and stderr.log")
     path.add_argument("job")
-    session = sub.add_parser("session", help="print the native session id found in a job's output"); session.add_argument("job")
     stop = sub.add_parser("stop", help="terminate a running job's process group"); stop.add_argument("job")
     args = parser.parse_args(mine)
     args.argv = provider_argv
     return {"run": cmd_run, "status": cmd_status,
-            "path": cmd_path, "session": cmd_session, "stop": cmd_stop}[args.action](args)
+            "path": cmd_path, "stop": cmd_stop}[args.action](args)
 
 if __name__ == "__main__": raise SystemExit(main())

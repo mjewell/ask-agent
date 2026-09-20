@@ -60,8 +60,9 @@ ok "--prompt-file - reads stdin"
 
 # --- a session id is recovered from structured output after the fact --------------
 job=$($xagent run --cwd . -- python3 -c 'import json; print(json.dumps({"type":"thread.started","thread_id":"thr_abc123"}))')
-test "$($xagent session "$job")" = "thr_abc123" || fail "session id was not recovered"
+grep -q '"session_id": "thr_abc123"' "$XAGENT_HOME/jobs/$job/job.json" || fail "session id not recorded in job.json"
 $xagent status "$job" | grep -q '"session_id": "thr_abc123"' || fail "session id not in status"
+test "$(jq -r .session_id "$XAGENT_HOME/jobs/$job/job.json")" = "thr_abc123" || fail "documented resume recipe does not work"
 ok "session id is recovered from saved output"
 
 # --- lineage is recorded when a job continues another -----------------------------

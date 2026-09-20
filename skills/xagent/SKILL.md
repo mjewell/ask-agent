@@ -26,6 +26,9 @@ Use XAgent when:
 - the task is long enough to want a **timeout and a stop switch**;
 - the user wants to **resume** a provider conversation later.
 
+`status` is the one command that tells you something the files do not: a job whose process died without
+recording an outcome reports as `abandoned` rather than `running`.
+
 Prefer a **native subagent** for ordinary work in the current harness. It is faster and cheaper, and it
 shares your context. XAgent's value is crossing to another provider or keeping a record — not delegation
 in general.
@@ -60,8 +63,8 @@ choice in one line, and proceed.
 
 Read the reference for the provider you chose:
 
-- [references/codex.md](references/codex.md)
-- [references/claude.md](references/claude.md)
+- [references/codex-cli.md](references/codex-cli.md)
+- [references/claude-code.md](references/claude-code.md)
 
 Each one gives a recommended invocation and the common flags worth knowing for this kind of job. Start from
 the recommended invocation and adjust.
@@ -98,8 +101,7 @@ xagent needs no special mode for that, and `stop` works either way.
 | --- | --- |
 | `run … -- CMD …` | Run a provider command, recorded and time-bounded. Prints the job id. |
 | `status [JOB]` | Job state, exit code, and recovered session id. No argument lists every job. |
-| `path JOB` | Print the job directory. Read `stdout.log` / `stderr.log` under it with `cat`, `tail -f`, or `jq`. |
-| `session JOB` | Print the native session id, for building a resume command. |
+| `path JOB` | Print the job directory. Read the files under it with `cat`, `tail -f`, or `jq`. |
 | `stop JOB` | Terminate the job's whole process group. |
 
 Job state lives in `.xagent/jobs/<id>/` (or `$XAGENT_HOME`): `job.json`, `prompt.txt`, `stdout.log`,
@@ -128,15 +130,19 @@ XAgent does not own resumption; the provider does. Get the session id, then writ
 command:
 
 ```sh
-sid=$(python3 <plugin-root>/scripts/xagent.py session 20260101-120000-a1b2c3)
-python3 <plugin-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/followup.md \
-  --parent 20260101-120000-a1b2c3 \
+job=20260101-120000-a1b2c3
+sid=$(jq -r .session_id "$(python3 <plugin-root>/scripts/xagent.py path $job)/job.json")
+python3 <plugin-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/followup.md --parent $job \
   -- codex exec resume "$sid" --json -s read-only -
 ```
 
+`status` prints the same id if you would rather read it there.
+
 `--parent` records the lineage in the job file. It does not change the command.
 
-Session recovery needs structured output; `run` warns when the command did not ask for it.
+Session recovery needs structured output; `run` warns when the command did not ask for it. If
+`job.json` has no `session_id` — which happens only if xagent itself was killed before it finished — the
+provider reference shows how to pull the id straight out of `stdout.log`.
 
 ## Safety
 
