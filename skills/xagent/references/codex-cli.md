@@ -65,6 +65,9 @@ To pull it out yourself:
 jq -r 'select(.type == "thread.started") | .thread_id' "$dir/stdout.log"
 ```
 
+Codex has no flag for assigning a thread id up front, so recovery is the only route to one here — unlike
+Claude Code, where `--session-id` can be set on the first run.
+
 **`resume` does not accept `-s/--sandbox`** — it rejects the flag outright. Re-pin the sandbox with
 `-c sandbox_mode="…"` instead. Do re-pin it: a resumed thread does not necessarily keep the original
 session's settings, and the recorded command should show what the continuation actually ran under.

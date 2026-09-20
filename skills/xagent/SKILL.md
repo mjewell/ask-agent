@@ -135,10 +135,11 @@ command:
 job=20260101-120000-a1b2c3
 sid=$(python3 <plugin-root>/scripts/xagent.py session $job)
 python3 <plugin-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/followup.md --parent $job \
-  -- codex exec resume "$sid" --json -s read-only -
+  -- codex exec resume "$sid" --json -c sandbox_mode="read-only" -
 ```
 
-`status` prints the same id if you would rather read it there.
+`status` prints the same id if you would rather read it there. Note the resume flags differ from the
+first run's — read the provider reference rather than adapting the launch command by hand.
 
 `--parent` records the lineage in the job file. It does not change the command.
 

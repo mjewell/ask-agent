@@ -84,6 +84,11 @@ Nothing to configure. Write a reference file under `skills/xagent/references/` c
 invocation, the sandbox or permission controls, the flags worth knowing, how to resume, and the `jq` filter
 for the final message. Then add it to the provider-selection step in [SKILL.md](skills/xagent/SKILL.md).
 
+If the provider can accept a caller-assigned session id, say so in the reference and recommend it over
+recovery: xagent's recovery is a generic scan for the first root-level `session_id`, `thread_id`, or
+`conversation_id` in the output, which suits today's CLIs but is inference, not a contract. Also check
+whether the resume subcommand takes the same flags as the initial run — Codex's does not.
+
 Avoid naming a reference `claude.md` or `agents.md`: on a case-insensitive filesystem those collide with
 `CLAUDE.md` and `AGENTS.md`, and an agent working in this repo may load the file as project instructions.
 Name them after the command plus `-cli`: `claude-cli.md`, `codex-cli.md`.
