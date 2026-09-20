@@ -1,80 +1,93 @@
 # XAgent (cross-agent)
 
-XAgent is a local, provider-neutral launcher for coding-agent CLIs. It is deliberately a small execution and audit layer, not an agent-to-agent conversation protocol. The calling agent decides what to ask and whether to continue a conversation; XAgent preserves that choice reliably.
+XAgent runs a coding-agent CLI and records what happened. It is a recording exec wrapper, nothing more: you
+hand it a command, it runs that command exactly as written, captures both streams, enforces a timeout, and
+keeps a durable job record.
 
-First choose the provider. When it is unspecified, recommend one based on the task and note when the other available harness offers a useful independent perspective; ask the user to confirm or change that choice. Then choose the delegation mechanism: prefer a native subagent for ordinary work targeting the current harness, and use XAgent for another provider, resumability, a complete local audit record, or explicit background/lifecycle control.
+Knowing *how* to build a provider command is the [xagent skill](skills/xagent/SKILL.md)'s job, not the
+runner's. The skill carries recommended invocations, sandbox settings, and per-provider flags, and a calling
+agent adapts them case by case. That is the right place for judgment and the wrong place for a schema — a
+validator can only see whether two flags collide, never whether they collide in intent.
+
+```sh
+xagent() { python3 /path/to/xagent/scripts/xagent.py "$@"; }
+
+xagent run --cwd /repo --timeout 900 --prompt-file /tmp/task.md \
+  -- codex exec --json -s read-only -C /repo --model gpt-5.6-sol -
+```
+
+Everything after `--` is the provider's command, passed through untouched.
 
 ## What it guarantees
 
-- Every job gets a durable ID and directory under `.xagent/jobs/` (or `$XAGENT_HOME`). `job.json` records the exact invocation, working directory, policy, timeout, timestamps, PID, exit state, parent job, prompt-file reference, and captured native session ID.
-- `prompt.txt` contains the exact submitted prompt and is streamed to configured provider CLIs on stdin, avoiding shell quoting and OS argv-length limits. `events.jsonl` preserves stdout and stderr with timestamps. All three are mode `0600` within a mode `0700` job directory; never include secrets unless this local audit store is appropriate for them.
-- `--resume JOB` maps to the provider's native resume mechanism. A resume is a new auditable bridge job linked to the earlier one, not an overwrite of history.
-- Child CLIs run in their own process group. Timeout and `stop` terminate the complete group, rather than only the immediate CLI process. `--detach` makes concurrent jobs possible and, by default, watches the invoking parent PID and cancels the job if it exits. Use `--survive-parent` for intentionally independent work.
-- New jobs require explicit `--model` and `--effort`; the calling agent chooses and passes them after inspecting the catalog. Resumes inherit their prior recorded choice unless explicitly overridden.
-- Permission modes remain honest translations to native flags. They are guardrails, not a container boundary; use OS/container sandboxing for strong isolation.
+- **A durable job record.** Every run gets an id and a directory under `.xagent/jobs/` (or `$XAGENT_HOME`)
+  containing `job.json`, `prompt.txt`, `stdout.log`, and `stderr.log`. `job.json` holds the exact argv, the
+  working directory, the timeout, timestamps, PID, exit code, final status, any recorded parent job, and the
+  native session id recovered from the output.
+- **Verbatim execution.** The argv you pass after `--` is what runs, and what is recorded. XAgent never
+  injects, reorders, or rewrites a flag.
+- **A hard timeout.** The child runs in its own process group. On timeout the whole group gets TERM, a
+  grace period, then KILL — so a CLI's own children die with it.
+- **Honest status.** A job whose process vanished without recording an outcome reports as `abandoned`, not
+  `running`. `stop` verifies the target process carries this job's `XAGENT_JOB` marker before signalling, so
+  a recycled PID is never hit.
+- **Private artifacts.** Files are `0600` inside a `0700` directory.
 
-## Examples
+## What it does not do
 
-```sh
-XAGENT="python3 /path/to/xagent/scripts/xagent.py"
-$XAGENT doctor
-$XAGENT run codex "Review this diff. Report findings only." --cwd /repo --mode read-only --model gpt-5.6-sol --effort medium --timeout 900 --detach
-$XAGENT status
-$XAGENT logs 20260101-120000-a1b2c3
-$XAGENT run codex "Reconsider finding 2 with this additional context..." --cwd /repo --mode read-only --resume 20260101-120000-a1b2c3
-$XAGENT stop 20260101-120000-a1b2c3
-$XAGENT models claude
-$XAGENT run claude "Threat-model this authentication flow." --cwd /repo --mode read-only --model claude-opus-5 --effort high
-```
+- **It is not a sandbox.** Sandbox and permission flags belong to the provider and are enforced by the
+  provider. XAgent passes them through and records them. For hard confinement, run it inside a container or
+  VM and pass only the directory you intend.
+- **It does not choose flags for you.** No adapter, no templates, no policy mapping. The skill recommends,
+  you decide, xagent records.
+- **It does not resume for you.** It recovers the native session id from saved output; you write the
+  provider's own resume command. `--parent JOB` records the lineage.
+- **It does not refuse anything.** If a command lacks a structured-output flag, xagent warns that `session`
+  and log parsing will not work, then runs it. There is no denylist, because a refusal would prevent
+  nothing — the same CLI is one Bash call away.
 
-## Model choice
+## Commands
 
-Each `providers/<provider>.json` carries a small, user-maintained catalog, stamped with `catalog_as_of`. `xagent models PROVIDER` presents a table of CLI choice/alias, model ID, input/output API-token cost, supported effort options, and purpose. The first catalog is based on official provider documentation and the local CLI picker as of 2026-09-19; update the JSON when your available models, pricing, or account changes. It is not an entitlement check: the runner accepts any provider-native model string. The catalog has no hidden recommendation metadata.
+| Command | |
+| --- | --- |
+| `run [--cwd DIR] [--timeout N] [--prompt-file PATH] [--parent JOB] -- CMD …` | Run a command. Prints the job id. |
+| `status [JOB]` | Job state, exit code, session id. No argument lists everything. |
+| `logs JOB [--stderr]` | Print captured output. |
+| `path JOB` | Print the job directory. |
+| `session JOB` | Print the recovered native session id. |
+| `stop JOB` | Terminate the job's process group. |
 
-If a new task has no model/effort, the calling agent should run `xagent models`, compare the task’s complexity and cost sensitivity with the table, choose and pass the best clear option, and proceed. Ask the user only when the provider is unknown or the quality/cost tradeoff is materially ambiguous. The runner declines to launch until both are specified (or until `--model default --effort default` explicitly requests provider defaults). The selected model and effort are persisted in each job record for auditability.
+`--prompt-file` is piped to the command's stdin and saved beside the log; `-` reads this process's stdin.
+It is the only way to supply a prompt — there is no inline form, so a long prompt never has to survive shell
+quoting.
 
-## Native CLI passthrough
+`run` blocks. Background it the way you would any long command; there is no special mode for that, and
+`stop` works either way.
 
-Use repeated `--provider-arg` (or `--passthrough`) for any underlying CLI argument XAgent does not own. Each occurrence is one literal argv item, so it is shell-safe and does not reinterpret quoting:
+Statuses: `succeeded`, `failed`, `timed_out`, `cancelled`, `abandoned`, `corrupt`.
 
-```sh
-$XAGENT run codex "Review the diff." --cwd /repo --mode read-only --model gpt-5.6-sol --effort medium \
-  --provider-arg=--profile --provider-arg ci --provider-arg=--add-dir --provider-arg ../shared
-```
+## Adding a provider
 
-The adapter reserves only flags essential to its guarantees: provider output format, session resume, model/effort, directory, and permission/sandbox. It rejects attempts to override them, while the exact final command remains in the audit record. Update `reserved_args` and `passthrough_position` in a provider adapter only after reviewing that provider CLI’s current help.
+Nothing to configure. Write a reference file under `skills/xagent/references/` covering the recommended
+invocation, the sandbox or permission controls, the flags worth knowing, how to resume, and the `jq` filter
+for the final message. Then add it to the provider-selection step in [SKILL.md](skills/xagent/SKILL.md).
 
-## Fine-grained provider controls
-
-Yes—both currently configured CLIs have narrower controls that compose with XAgent's coarse mode, provided they do not override the coarse policy itself. Pass them with `--provider-arg`:
-
-| Provider | Compatible native controls | Notes |
-| --- | --- | --- |
-| Codex | `--add-dir PATH` | Makes an additional directory writable alongside the selected working directory. XAgent owns `--sandbox` and `-c/--config`, since either can defeat the recorded policy. |
-| Claude Code | `--restricted`, `--add-dir PATH`, `--allowed-tools LIST`, `--disallowed-tools LIST`, `--tools LIST` | These can narrow tool/filesystem access further. `--restricted` conflicts with an unrestricted/bypass session, so use it only with a constrained XAgent mode. |
-
-For example, a read-only Claude review that permits only file-reading tools can add `--provider-arg=--tools --provider-arg Read,Glob,Grep`. A container/VM remains necessary where directory confinement must be a hard security boundary.
-
-## Permission model
-
-| Bridge mode | Codex | Claude Code |
-| --- | --- | --- |
-| `read-only` | `--sandbox read-only` | `--permission-mode plan` |
-| `workspace-write` | `--sandbox workspace-write` | `--permission-mode acceptEdits` |
-| `unrestricted` | `--sandbox danger-full-access` | `--permission-mode bypassPermissions` |
-
-The adapters do not fabricate a claim that `workspace-write` works as a security boundary for every host. For hard directory confinement, run the bridge itself in a container/VM or provider-supported sandbox, and pass only the intended working directory. Review the exact `command` in the private job record. A resumed provider session retains provider-native session settings; start a new job when the permission boundary must change.
-
-## Add a provider
-
-Add one JSON file to `providers/`. It defines the executable, argv templates for a new and resumed task, a regex that captures the provider's native session ID from output, model/effort argument templates, the maintained model table, passthrough placement/reserved flags, and a minimal mapping for the three XAgent policy names. Templates may use `{cwd}`, `{prompt}`, `{session_id}`, and fields defined in a policy. Start from the provider's current `--help`; do not copy broad generic agent advice into the adapter.
-
-When adding a provider, extend the provider-selection guidance with the capabilities that actually distinguish it. Keep that guidance in this README rather than the runtime skill until the provider is installed and supported; the skill should only describe currently usable choices.
-
-For a provider with no resumable session ID, omit `session_id_regex` and document that `--resume` is unavailable. A production expansion should add a provider-specific parser when a provider emits a more structured session event.
+Keep references short. They will lag the CLI, and the skill already tells the agent to run `--help` when
+something is missing — that hedge ages better than any schema.
 
 ## Operational notes
 
-The transcript can contain prompt injection, untrusted code suggestions, and secrets printed by a provider. Restrict the state directory (`umask 077` is recommended), put it outside the repository when needed, and treat it as sensitive audit data. Do not place credentials in prompts or provider arguments. Avoid `unrestricted` outside an external sandbox.
+Transcripts can contain prompt injection, untrusted code, and secrets printed by a provider. Treat the job
+store as sensitive: `umask 077` is recommended, and `XAGENT_HOME` can move it outside the repository. Do not
+put credentials in prompts or provider arguments.
 
-Parent-PID watching covers normal local process lifecycles, but PID reuse and remote/IDE session teardown need a host supervisor or cgroup for a strong guarantee. The job log makes either cancellation path visible.
+Logs are written raw, because escaping them would break `jq` on the structured stream that makes them useful.
+Callers are responsible for treating the contents as data.
+
+Nothing prunes the store; transcripts accumulate until you delete them.
+
+## Tests
+
+```sh
+sh tests/test_smoke.sh
+```
