@@ -78,7 +78,7 @@ for the final message. Then add it to the provider-selection step in [SKILL.md](
 
 Avoid naming a reference `claude.md` or `agents.md`: on a case-insensitive filesystem those collide with
 `CLAUDE.md` and `AGENTS.md`, and an agent working in this repo may load the file as project instructions.
-Use `claude-code.md`, `codex-cli.md`, and so on.
+Name them after the command plus `-cli`: `claude-cli.md`, `codex-cli.md`.
 
 Keep references short. They will lag the CLI, and the skill already tells the agent to run `--help` when
 something is missing — that hedge ages better than any schema.

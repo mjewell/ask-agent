@@ -64,7 +64,7 @@ choice in one line, and proceed.
 Read the reference for the provider you chose:
 
 - [references/codex-cli.md](references/codex-cli.md)
-- [references/claude-code.md](references/claude-code.md)
+- [references/claude-cli.md](references/claude-cli.md)
 
 Each one gives a recommended invocation and the common flags worth knowing for this kind of job. Start from
 the recommended invocation and adjust.
