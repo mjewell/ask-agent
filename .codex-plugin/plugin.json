@@ -1,14 +1,17 @@
 {
   "name": "ask-agent",
   "version": "0.1.0",
-  "description": "Durable, auditable coding-agent CLI handoffs.",
+  "description": "Hand a task to another coding-agent CLI with saved logs, a timeout, and follow-up sessions.",
   "author": {
     "name": "Michael Jewell"
   },
+  "homepage": "https://github.com/mjewell/ask-agent",
+  "repository": "https://github.com/mjewell/ask-agent",
+  "keywords": ["agent", "cli", "codex", "claude-code", "delegation"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Ask Agent",
-    "shortDescription": "Delegate tasks to Claude, Codex, and other CLIs.",
+    "shortDescription": "Ask Claude Code, Codex, or agy for a second opinion.",
     "longDescription": "Hand tasks to another coding agent with saved logs, timeouts, final answers, and follow-up sessions.",
     "developerName": "Michael Jewell",
     "category": "Productivity",

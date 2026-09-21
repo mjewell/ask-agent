@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(os.environ.get("ASK_AGENT_HOME", ".ask-agent")).expanduser()
+ROOT = Path(os.environ.get("ASK_AGENT_HOME", "~/.ask-agent")).expanduser()
 JOB_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 SESSION_KEYS = ("session_id", "thread_id", "conversation_id")
 STRUCTURED_HINTS = ("--json", "--output-format", "--experimental-json")

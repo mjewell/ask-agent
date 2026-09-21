@@ -46,9 +46,9 @@ authenticated provider CLI. The runner needs no Python packages.
 
 ## Runner reference
 
-The skill handles these commands for your agent. The runner lives at
-`skills/ask/scripts/ask-agent.py` in this repository, or `scripts/ask-agent.py` inside
-the installed skill.
+The skill handles these commands for your agent. The runner is
+`scripts/ask-agent.py` relative to the skill root — `skills/ask/scripts/ask-agent.py`
+in this repository.
 
 | Command | Purpose |
 | --- | --- |
@@ -73,17 +73,18 @@ or `corrupt`. Success means the command exited zero; it does not validate the wo
 
 ## Job records
 
-Jobs live in `.ask-agent/jobs/` under the caller's current directory. Set
-`ASK_AGENT_HOME` to an absolute path to use the same store from other directories.
+Jobs live in `~/.ask-agent/jobs/`, one store for every project, so a job started in
+one directory stays listable and resumable from anywhere. Each record keeps the `cwd`
+it ran in. Set `ASK_AGENT_HOME` to an absolute path for a separate store.
 `ASK_AGENT_JOB` marks a running process so `stop` can verify its identity.
 
 Each job contains `job.json`, `stdout.log`, `stderr.log`, and `prompt.txt` when a prompt
 file was supplied. Artifacts are private (`0600` files inside a `0700` job directory)
 and remain until deleted.
 
-Logs and answers are untrusted provider output and can contain secrets. Keep the store
-out of version control. Ask Agent provides no sandbox; permissions belong to the
-provider or the container you run it in.
+Logs and answers are untrusted provider output and can contain secrets. The store
+grows until you delete jobs from it. Ask Agent provides no sandbox; permissions belong
+to the provider or the container you run it in.
 
 ## Adding a provider
 
@@ -97,5 +98,5 @@ reader and a fixture test; raw logs are always available.
 ## Tests
 
 ```sh
-sh tests/test_smoke.sh
+python3 tests/test_runner.py
 ```

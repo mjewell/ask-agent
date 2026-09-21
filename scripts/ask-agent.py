@@ -1,1 +1,0 @@
-../skills/ask/scripts/ask-agent.py

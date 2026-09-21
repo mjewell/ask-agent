@@ -286,6 +286,16 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(self.metadata(job)['status'], 'abandoned')
             kill.assert_not_called()
 
+    def test_default_store_is_the_home_directory(self):
+        def load(environ):
+            with patch.dict(os.environ, environ, clear=True):
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                return module.ROOT
+        self.assertEqual(load({'HOME': str(self.root)}), self.root / '.ask-agent')
+        self.assertEqual(load({'HOME': str(self.root), 'ASK_AGENT_HOME': '~/elsewhere'}),
+                         self.root / 'elsewhere')
+
     def test_validation_and_provider_flags(self):
         for args in [('path', '../../etc'), ('run', '--'), ('run', '--timeout', '0', '--', 'true'),
                      ('run', '--cwd', str(self.root / 'missing'), '--', 'true')]:
