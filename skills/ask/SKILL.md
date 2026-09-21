@@ -83,6 +83,7 @@ dir=$(python3 <skill-root>/scripts/ask-agent.py path JOB)
 | `path JOB` | Locate `job.json`, `stdout.log`, `stderr.log`, and any saved prompt. |
 | `session JOB` | Get the provider's session ID, including during a run. |
 | `stop JOB` | Stop the job's process group. |
+| `prune [--older-than DAYS] [--delete]` | List old jobs; `--delete` removes them. |
 
 To continue a conversation, use `session JOB`, build the provider's resume command
 from its reference, and pass `--parent JOB` on the new run. Reapply model, effort, and permission
@@ -92,6 +93,11 @@ when that is set, so a job remains resumable from any directory.
 Preserve provider sessions by default. Never pass `--no-session-persistence` (or an
 equivalent setting) unless the user explicitly asks for an ephemeral session; a job
 that looks disposable now may need to be resumed later.
+
+`prune` deletes job records permanently. Run it without `--delete` first, show the user
+what matches, and only pass `--delete` once they have agreed to lose those records. Do
+not prune to reclaim space on your own initiative; a pruned job cannot be resumed through
+Ask Agent afterwards.
 
 ## Boundaries
 

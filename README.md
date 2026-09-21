@@ -58,6 +58,7 @@ in this repository.
 | `path JOB` | Print the directory containing the job record and logs. |
 | `session JOB` | Print the provider's session ID, including during a run. |
 | `stop JOB` | Stop a running job's process group after verifying its identity. |
+| `prune [--older-than DAYS] [--delete]` | List jobs past the retention window; remove them with `--delete`. Default window: 30 days. |
 
 Everything after `--` is passed through unchanged. `--prompt-file` saves the prompt
 and feeds it to stdin; use `-` to read your stdin. The provider reference describes
@@ -81,6 +82,17 @@ it ran in. Set `ASK_AGENT_HOME` to an absolute path for a separate store.
 Each job contains `job.json`, `stdout.log`, `stderr.log`, and `prompt.txt` when a prompt
 file was supplied. Artifacts are private (`0600` files inside a `0700` job directory)
 and remain until deleted.
+
+`prune` lists what it would remove and removes nothing without `--delete`, so you can
+always see the cost first. It never touches a job that is still running or whose process
+it could not verify; a job whose process is gone without recording an outcome is removed,
+since that record is stale by definition. Ages are measured from when a job finished.
+
+Pruning discards the job record, not the provider's own session — that lives with the
+provider and survives. What is lost is the session ID pointing at it, so a pruned
+conversation is no longer resumable through Ask Agent. The listing prints each session ID
+before it goes, and a job kept past a pruned parent keeps a `parent_job` that no longer
+resolves.
 
 Logs and answers are untrusted provider output and can contain secrets. The store
 grows until you delete jobs from it. Ask Agent provides no sandbox; permissions belong

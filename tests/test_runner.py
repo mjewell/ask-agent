@@ -1,4 +1,6 @@
+import contextlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -11,6 +13,7 @@ import tempfile
 import time
 import types
 import unittest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 SKILL = Path(__file__).resolve().parents[1] / 'skills' / 'ask'
@@ -328,6 +331,84 @@ class RunnerTests(unittest.TestCase):
         self.assertNotIn('no structured output flag detected', quiet.stderr)
         loud = self.cli('run', '--', sys.executable, '-c', 'pass', 'please use --output-format stream-json')
         self.assertIn('no structured output flag detected', loud.stderr)
+
+    def age_job(self, job, days, **patch):
+        stamp = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        data = {**self.metadata(job), 'created_at': stamp, 'finished_at': stamp, **patch}
+        (self.store / 'jobs' / job / 'job.json').write_text(json.dumps(data))
+        return job
+
+    def prune_in_process(self, **kwargs):
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            ask_agent.cmd_prune(types.SimpleNamespace(older_than=0, delete=True, **kwargs))
+        return out.getvalue()
+
+    def prune(self, *args):
+        result = self.cli('prune', *args)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return {json.loads(line)['job']: json.loads(line) for line in result.stdout.splitlines()}, result
+
+    def test_prune_lists_before_it_deletes(self):
+        old = self.age_job(self.run_code('print(\'{"session_id":"sess_old"}\')')[1], 40)
+        recent = self.age_job(self.run_code('pass')[1], 2)
+        listed, result = self.prune()
+        self.assertEqual(set(listed), {old})
+        self.assertEqual(listed[old]['session_id'], 'sess_old')
+        self.assertFalse(listed[old]['deleted'])
+        self.assertIn('re-run with --delete', result.stderr)
+        # Nothing is removed without --delete.
+        self.assertEqual(set(p.name for p in (self.store / 'jobs').iterdir()), {old, recent})
+        listed, _ = self.prune('--delete')
+        self.assertTrue(listed[old]['deleted'])
+        self.assertEqual(set(p.name for p in (self.store / 'jobs').iterdir()), {recent})
+
+    def test_prune_never_removes_a_live_job(self):
+        _, job, _ = self.start_live_job()
+        self.age_job(job, 90, status='running', finished_at=None,
+                     process_group=self.metadata(job)['process_group'])
+        listed, _ = self.prune('--older-than', '0', '--delete')
+        self.assertNotIn(job, listed)
+        self.assertTrue((self.store / 'jobs' / job).is_dir())
+
+    def test_prune_protects_the_unverifiable_but_collects_the_abandoned(self):
+        for verdict, survives in ((None, True), (False, False)):
+            with self.subTest(verdict=verdict):
+                job = self.age_job(self.run_code('pass')[1], 90,
+                                   status='running', finished_at=None, process_group=999999)
+                with patch.object(ask_agent, 'process_matches_job', return_value=verdict):
+                    self.prune_in_process()
+                self.assertEqual((self.store / 'jobs' / job).is_dir(), survives)
+
+    def test_prune_defers_a_job_whose_record_changed_under_it(self):
+        job = self.age_job(self.run_code('pass')[1], 90)
+        stale = {**self.metadata(job), 'status': 'succeeded', 'exit_code': 7}
+        with patch.object(ask_agent, 'read_job', side_effect=[stale, self.metadata(job)]):
+            reported = json.loads(self.prune_in_process())
+        self.assertTrue((self.store / 'jobs' / job).is_dir())
+        self.assertFalse(reported['deleted'], 'a deferred job must still be reported, as kept')
+
+    def test_prune_removes_a_record_too_damaged_to_read(self):
+        bad = self.store / 'jobs' / '20260101-000000-badbad'
+        bad.mkdir(parents=True); (bad / 'job.json').write_text('{broken')
+        os.utime(bad, (time.time() - 40 * 86400,) * 2)
+        listed, _ = self.prune('--delete')
+        self.assertEqual(listed['20260101-000000-badbad']['status'], 'corrupt')
+        self.assertFalse(bad.exists())
+
+    def test_prune_window_and_argument_validation(self):
+        job = self.age_job(self.run_code('pass')[1], 10)
+        self.assertEqual(set(self.prune('--older-than', '30')[0]), set())
+        self.assertEqual(set(self.prune('--older-than', '5')[0]), {job})
+        self.assertNotEqual(self.cli('prune', '--older-than', '-1').returncode, 0)
+        self.assertTrue((self.store / 'jobs' / job).is_dir())
+
+    def test_prune_refuses_to_follow_a_symlink_out_of_the_store(self):
+        outside = self.root / 'precious'; outside.mkdir(); (outside / 'keep.txt').write_text('keep')
+        (self.store / 'jobs').mkdir(parents=True, exist_ok=True)
+        (self.store / 'jobs' / '20260101-000000-abcdef').symlink_to(outside)
+        with self.assertRaises(SystemExit):
+            ask_agent.remove_job('20260101-000000-abcdef')
+        self.assertTrue((outside / 'keep.txt').exists())
 
     def test_validation_and_provider_flags(self):
         for args in [('path', '../../etc'), ('run', '--'), ('run', '--timeout', '0', '--', 'true'),

@@ -14,6 +14,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
@@ -25,6 +26,9 @@ from pathlib import Path
 ROOT = Path(os.environ.get("ASK_AGENT_HOME", "~/.ask-agent")).expanduser()
 JOB_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 SESSION_KEYS = ("session_id", "thread_id", "conversation_id")
+# Statuses prune must never remove. An abandoned or never-started record is not here:
+# that is exactly the garbage prune exists to collect.
+PROTECTED = ("running", "unknown")
 STRUCTURED_HINTS = ("--json", "--output-format", "--experimental-json")
 
 def now(): return datetime.now(timezone.utc).isoformat()
@@ -243,9 +247,11 @@ def effective_status(job, data):
         if match is False: return "abandoned"
     return data.get("status")
 
+def known_jobs():
+    return sorted(p.name for p in jobs_root().glob("*") if p.is_dir() and JOB_RE.fullmatch(p.name))
+
 def cmd_status(args):
-    jobs = [check_job(args.job)] if args.job else sorted(
-        p.name for p in jobs_root().glob("*") if p.is_dir() and JOB_RE.fullmatch(p.name))
+    jobs = [check_job(args.job)] if args.job else known_jobs()
     for job in jobs:
         try: data = job_data(job)
         except (SystemExit, OSError, ValueError) as exc:
@@ -273,6 +279,52 @@ def cmd_answer(args):
     if answer is None:
         raise SystemExit(f"no final answer found; inspect the logs with `ask-agent path {job}`")
     print(answer)
+
+def read_job(job):
+    """job.json as far as it can be read; a record too damaged to parse is an empty one."""
+    try: return job_data(job)
+    except (SystemExit, OSError, ValueError): return {}
+
+def job_age_days(job, data):
+    """Age from when the job stopped mattering, falling back to the directory for a
+    record too damaged to read."""
+    stamp = data.get("finished_at") or data.get("created_at")
+    if isinstance(stamp, str):
+        try: return (time.time() - datetime.fromisoformat(stamp).timestamp()) / 86400
+        except ValueError: pass
+    try: return (time.time() - job_dir(job).stat().st_mtime) / 86400
+    except OSError: return 0.0
+
+def remove_job(job):
+    """Delete one job directory. job_dir validates the id; the rest refuses anything
+    that is not a real directory sitting directly in this store."""
+    folder = job_dir(job)
+    if folder.is_symlink() or folder.parent != jobs_root() or not folder.is_dir():
+        raise SystemExit(f"refusing to delete {folder}")
+    shutil.rmtree(folder)
+
+def cmd_prune(args):
+    if args.older_than < 0: raise SystemExit("--older-than must not be negative")
+    matched = 0
+    for job in known_jobs():
+        data = read_job(job)
+        status = effective_status(job, data) if data else "corrupt"
+        age = job_age_days(job, data)
+        if status in PROTECTED or age < args.older_than: continue
+        matched += 1
+        deleted = False
+        if args.delete:
+            # A runner outlives its child's process group, so a job that looks abandoned may
+            # be one whose finalizing write is still to come. Any change since we looked defers
+            # it to the next run, and the listing reports it as kept.
+            with state_lock():
+                if read_job(job) == data: remove_job(job); deleted = True
+        print(json.dumps({"job": job, "status": status, "age_days": round(age, 2),
+                          "session_id": data.get("session_id"), "deleted": deleted},
+                         sort_keys=True))
+    if not args.delete and matched:
+        print(f"ask-agent: {matched} job(s) match; re-run with --delete to remove them", file=sys.stderr)
+    return 0
 
 def cmd_stop(args):
     job = check_job(args.job)
@@ -314,9 +366,13 @@ def main():
     session = sub.add_parser("session", help="print the job's native session id, even while it runs")
     session.add_argument("job")
     stop = sub.add_parser("stop", help="terminate a running job's process group"); stop.add_argument("job")
+    prune = sub.add_parser("prune", help="list, and with --delete remove, finished jobs past a retention window")
+    prune.add_argument("--older-than", type=float, default=30, metavar="DAYS",
+                       help="retention window in days; jobs finished longer ago than this match")
+    prune.add_argument("--delete", action="store_true", help="actually remove them; without it this only lists")
     args = parser.parse_args(mine)
     args.argv = provider_argv
-    return {"run": cmd_run, "status": cmd_status, "answer": cmd_answer,
-            "path": cmd_path, "session": cmd_session, "stop": cmd_stop}[args.action](args)
+    return {"run": cmd_run, "status": cmd_status, "answer": cmd_answer, "path": cmd_path,
+            "session": cmd_session, "stop": cmd_stop, "prune": cmd_prune}[args.action](args)
 
 if __name__ == "__main__": raise SystemExit(main())
