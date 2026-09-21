@@ -12,5 +12,5 @@ The `ask` skill is required and owns all instructions, references, and runner lo
 If it is unavailable, tell the user to install both skills and stop:
 
 ```sh
-npx skills add mjewell/xagent --skill ask --skill ask-codex
+npx skills add mjewell/ask-agent --skill ask --skill ask-codex
 ```

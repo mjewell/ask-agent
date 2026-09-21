@@ -15,20 +15,19 @@ from unittest.mock import patch
 
 SKILL = Path(__file__).resolve().parents[1] / 'skills' / 'ask'
 SCRIPT = SKILL / 'scripts' / 'ask-agent.py'
-COMPAT_SCRIPT = SKILL / 'scripts' / 'xagent.py'
 spec = importlib.util.spec_from_file_location('ask_agent', SCRIPT)
-xagent = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(xagent)
+ask_agent = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(ask_agent)
 
 
 class RunnerTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='xagent-test-')
+        self.temp = tempfile.TemporaryDirectory(prefix='ask-agent-test-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.store = self.root / 'state'
-        self.env = {**os.environ, 'XAGENT_HOME': str(self.store)}
-        self.root_patch = patch.object(xagent, 'ROOT', self.store)
+        self.env = {**os.environ, 'ASK_AGENT_HOME': str(self.store)}
+        self.root_patch = patch.object(ask_agent, 'ROOT', self.store)
         self.root_patch.start()
         self.addCleanup(self.root_patch.stop)
 
@@ -79,16 +78,6 @@ class RunnerTests(unittest.TestCase):
                                 cwd=self.root, env=self.env, text=True, capture_output=True, timeout=10)
         self.assertEqual(answer.returncode, 0, answer.stderr)
         self.assertEqual(answer.stdout.strip(), 'Installed answer')
-
-    def test_legacy_runner_entry_point(self):
-        code = 'print(\'{"type":"result","subtype":"success","result":"Compatible"}\')'
-        result = subprocess.run([sys.executable, str(COMPAT_SCRIPT), 'run', '--', sys.executable, '-c', code],
-                                cwd=self.root, env=self.env, text=True, capture_output=True, timeout=10)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        answer = subprocess.run([sys.executable, str(COMPAT_SCRIPT), 'answer', result.stdout.strip()],
-                                cwd=self.root, env=self.env, text=True, capture_output=True, timeout=10)
-        self.assertEqual(answer.returncode, 0, answer.stderr)
-        self.assertEqual(answer.stdout.strip(), 'Compatible')
 
     def test_record_streams_permissions_and_verbatim_argv(self):
         code = 'import sys; print("hello"); print("error",file=sys.stderr)'
@@ -207,8 +196,8 @@ class RunnerTests(unittest.TestCase):
     def test_stop_verified_job(self):
         proc, job, child_pid = self.start_live_job()
         # Identity verification is covered below; this tests signalling only our own child group.
-        with patch.object(xagent, 'process_matches_job', return_value=True):
-            xagent.cmd_stop(types.SimpleNamespace(job=job))
+        with patch.object(ask_agent, 'process_matches_job', return_value=True):
+            ask_agent.cmd_stop(types.SimpleNamespace(job=job))
         proc.wait(timeout=15)
         self.assert_dead(child_pid)
         self.assertEqual(self.metadata(job)['status'], 'cancelled')
@@ -251,7 +240,7 @@ class RunnerTests(unittest.TestCase):
             self.skipTest('process inspection is unavailable in this environment')
         if check.returncode != 0:
             self.skipTest('process inspection is unavailable in this environment')
-        self.assertIs(xagent.process_matches_job(pid, job), True)
+        self.assertIs(ask_agent.process_matches_job(pid, job), True)
         result = self.cli('stop', job)
         self.assertEqual(result.returncode, 0, result.stderr)
         proc.wait(timeout=15)
@@ -271,29 +260,29 @@ class RunnerTests(unittest.TestCase):
 
     def test_process_identity(self):
         job = '20260101-120000-a1b2c3'
-        with patch.object(xagent.os, 'kill'):
-            for output, expected in [('cmd XAGENT_JOB=' + job, True),
-                                     ('cmd XAGENT_JOB=' + job + 'extra', False),
+        with patch.object(ask_agent.os, 'kill'):
+            for output, expected in [('cmd ASK_AGENT_JOB=' + job, True),
+                                     ('cmd ASK_AGENT_JOB=' + job + 'extra', False),
                                      ('cmd without visible environment', None)]:
-                with self.subTest(output=output), patch.object(xagent.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0, stdout=output)):
-                    self.assertIs(xagent.process_matches_job(123, job), expected)
-            with patch.object(xagent.subprocess, 'run', side_effect=PermissionError):
-                self.assertIsNone(xagent.process_matches_job(123, job))
-        with patch.object(xagent.os, 'kill', side_effect=ProcessLookupError):
-            self.assertIs(xagent.process_matches_job(123, job), False)
+                with self.subTest(output=output), patch.object(ask_agent.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0, stdout=output)):
+                    self.assertIs(ask_agent.process_matches_job(123, job), expected)
+            with patch.object(ask_agent.subprocess, 'run', side_effect=PermissionError):
+                self.assertIsNone(ask_agent.process_matches_job(123, job))
+        with patch.object(ask_agent.os, 'kill', side_effect=ProcessLookupError):
+            self.assertIs(ask_agent.process_matches_job(123, job), False)
 
     def test_unknown_and_abandoned_stop(self):
         _, job = self.run_code('pass')
-        xagent.update(job, status='running', process_group=123)
+        ask_agent.update(job, status='running', process_group=123)
         args = types.SimpleNamespace(job=job)
-        with patch.object(xagent, 'process_matches_job', return_value=None), patch.object(xagent, 'kill_group') as kill:
-            self.assertEqual(xagent.effective_status(job, self.metadata(job)), 'unknown')
-            with self.assertRaisesRegex(SystemExit, 'cannot verify'): xagent.cmd_stop(args)
+        with patch.object(ask_agent, 'process_matches_job', return_value=None), patch.object(ask_agent, 'kill_group') as kill:
+            self.assertEqual(ask_agent.effective_status(job, self.metadata(job)), 'unknown')
+            with self.assertRaisesRegex(SystemExit, 'cannot verify'): ask_agent.cmd_stop(args)
             self.assertEqual(self.metadata(job)['status'], 'running')
             kill.assert_not_called()
-        with patch.object(xagent, 'process_matches_job', return_value=False), patch.object(xagent, 'kill_group') as kill:
-            self.assertEqual(xagent.effective_status(job, self.metadata(job)), 'abandoned')
-            with self.assertRaisesRegex(SystemExit, 'abandoned'): xagent.cmd_stop(args)
+        with patch.object(ask_agent, 'process_matches_job', return_value=False), patch.object(ask_agent, 'kill_group') as kill:
+            self.assertEqual(ask_agent.effective_status(job, self.metadata(job)), 'abandoned')
+            with self.assertRaisesRegex(SystemExit, 'abandoned'): ask_agent.cmd_stop(args)
             self.assertEqual(self.metadata(job)['status'], 'abandoned')
             kill.assert_not_called()
 

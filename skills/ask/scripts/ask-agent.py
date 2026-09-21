@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(os.environ.get("XAGENT_HOME", ".xagent")).expanduser()
+ROOT = Path(os.environ.get("ASK_AGENT_HOME", ".ask-agent")).expanduser()
 JOB_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 SESSION_KEYS = ("session_id", "thread_id", "conversation_id")
 STRUCTURED_HINTS = ("--json", "--output-format", "--experimental-json")
@@ -94,7 +94,7 @@ def process_matches_job(pid, job):
     try:
         result = subprocess.run(["ps", "eww", "-p", str(pid), "-o", "command="], text=True, capture_output=True, timeout=2)
         if result.returncode != 0: return None
-        markers = re.findall(r"(?:^|\s)XAGENT_JOB=(\S+)", result.stdout)
+        markers = re.findall(r"(?:^|\s)ASK_AGENT_JOB=(\S+)", result.stdout)
         return markers[-1] == job if markers else None
     except (OSError, subprocess.TimeoutExpired): return None
 
@@ -183,7 +183,7 @@ def execute(job):
                 with state_lock():
                     proc = subprocess.Popen(data["argv"], cwd=data["cwd"], stdin=stdin_source or subprocess.DEVNULL,
                                             stdout=out, stderr=err, start_new_session=True,
-                                            env={**os.environ, "XAGENT_JOB": job})
+                                            env={**os.environ, "ASK_AGENT_JOB": job})
                     data.update(status="running", started_at=now(), pid=proc.pid, process_group=proc.pid)
                     write_json(meta_path(job), data)
                 rc = proc.wait(timeout=data["timeout_seconds"])

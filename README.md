@@ -13,7 +13,7 @@ without duplicating that implementation.
 Install the main skill with [skills](https://github.com/vercel-labs/skills):
 
 ```sh
-npx skills add mjewell/xagent --skill ask
+npx skills add mjewell/ask-agent --skill ask
 ```
 
 Choose your agent in the installer, then ask naturally:
@@ -28,9 +28,9 @@ use the invocation name shown by the host after installation.
 Provider shortcuts are optional. Install one together with its required main skill:
 
 ```sh
-npx skills add mjewell/xagent --skill ask --skill ask-claude
-npx skills add mjewell/xagent --skill ask --skill ask-codex
-npx skills add mjewell/xagent --skill ask --skill ask-agy
+npx skills add mjewell/ask-agent --skill ask --skill ask-claude
+npx skills add mjewell/ask-agent --skill ask --skill ask-codex
+npx skills add mjewell/ask-agent --skill ask --skill ask-agy
 ```
 
 Installing a shortcut by itself does not implicitly install sibling skills. If only a
@@ -48,7 +48,7 @@ authenticated provider CLI. The runner needs no Python packages.
 
 The skill handles these commands for your agent. The runner lives at
 `skills/ask/scripts/ask-agent.py` in this repository, or `scripts/ask-agent.py` inside
-the installed skill. The old `xagent.py` entry point remains as a compatibility shim.
+the installed skill.
 
 | Command | Purpose |
 | --- | --- |
@@ -71,11 +71,11 @@ Status is `queued`, `running`, `succeeded`, `failed`, `timed_out`, `cancelled`,
 `abandoned` (the process disappeared), `unknown` (its identity could not be checked),
 or `corrupt`. Success means the command exited zero; it does not validate the work.
 
-## Compatibility and job records
+## Job records
 
-Jobs intentionally continue to live in `.xagent/jobs/` under the caller's current
-directory. `XAGENT_HOME` still selects another store, and `XAGENT_JOB` remains the
-process-identity marker. These names preserve existing jobs across the product rename.
+Jobs live in `.ask-agent/jobs/` under the caller's current directory. Set
+`ASK_AGENT_HOME` to an absolute path to use the same store from other directories.
+`ASK_AGENT_JOB` marks a running process so `stop` can verify its identity.
 
 Each job contains `job.json`, `stdout.log`, `stderr.log`, and `prompt.txt` when a prompt
 file was supplied. Artifacts are private (`0600` files inside a `0700` job directory)
