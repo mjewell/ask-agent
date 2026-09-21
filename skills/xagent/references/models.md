@@ -30,9 +30,7 @@ working around it.
 
 ## agy (Gemini)
 
-`agy models` prints the live catalog for the account, so use that rather than a table here. Most model ids
-encode an effort tier (`gemini-3.8-flash-high`, `-medium`, `-low`); see
-[agy-cli.md](agy-cli.md) for how that interacts with the separate `--effort` flag.
+See [agy-cli.md](agy-cli.md#models-and-effort) for model discovery and effort selection.
 
 ## Choosing
 

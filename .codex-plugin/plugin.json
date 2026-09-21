@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "XAgent",
     "shortDescription": "Delegate tasks to Claude, Codex, and other CLIs.",
-    "longDescription": "Starts, resumes, monitors, and stops bounded agent CLI jobs with local audit logs.",
+    "longDescription": "Hand tasks to another coding agent with saved logs, timeouts, final answers, and follow-up sessions.",
     "developerName": "Michael Jewell",
     "category": "Productivity",
     "capabilities": [],
