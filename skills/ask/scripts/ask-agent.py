@@ -45,7 +45,7 @@ def job_data(job):
 @contextmanager
 def state_lock():
     """Serialize job metadata changes."""
-    ROOT.mkdir(parents=True, exist_ok=True)
+    private_dir(ROOT)
     lock = ROOT / ".state.lock"
     with lock.open("a+") as handle:
         os.chmod(lock, 0o600)
@@ -64,6 +64,10 @@ def update(job, **changes):
 
 def private_file(path, mode="wb"):
     return os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), mode)
+
+def private_dir(path):
+    """Create a directory only this user can enter, tightening one that predates this."""
+    path.mkdir(parents=True, exist_ok=True); os.chmod(path, 0o700); return path
 
 class Interrupted(Exception):
     """SIGTERM reached the runner. Without this, Python's default disposition would exit
@@ -121,6 +125,9 @@ def find_answer(job):
     """Read final text from Codex, Claude Code, or agy without changing the saved log."""
     answer = None
     for event in output_events(job):
+        if event.get("type") == "turn.failed":
+            answer = None
+            continue
         item = event.get("item")
         if event.get("type") == "item.completed" and isinstance(item, dict) and item.get("type") == "agent_message":
             text = item.get("text")
@@ -153,9 +160,11 @@ def cmd_run(args):
     if not cwd.is_dir(): raise SystemExit(f"--cwd is not a directory: {cwd}")
     prompt = read_prompt(args.prompt_file)
     parent = check_job(args.parent) if args.parent else None
+    if parent: job_data(parent)   # fail now rather than record lineage to a job that is not there
 
     job = time.strftime("%Y%m%d-%H%M%S", time.gmtime()) + "-" + secrets.token_hex(3)
-    folder = job_dir(job); folder.mkdir(parents=True, mode=0o700); os.chmod(folder, 0o700)
+    private_dir(ROOT); private_dir(jobs_root())
+    folder = job_dir(job); folder.mkdir(mode=0o700); os.chmod(folder, 0o700)
     if prompt is not None:
         with private_file(folder / "prompt.txt", "w") as out: out.write(prompt)
     write_json(meta_path(job), {
@@ -164,7 +173,7 @@ def cmd_run(args):
         "created_at": now(), "status": "queued", "exit_code": None, "session_id": None,
     })
     print(job, flush=True)
-    if not any(hint in item for item in args.argv for hint in STRUCTURED_HINTS):
+    if not any(item.split("=", 1)[0] in STRUCTURED_HINTS for item in args.argv):
         print("ask-agent: no structured output flag detected; answer and session discovery may be unavailable",
               file=sys.stderr)
     return execute(job)
@@ -220,8 +229,11 @@ def execute(job):
         for signum, handler in previous_handlers.items(): signal.signal(signum, handler)
 
 def effective_session(job, data):
-    """job.json only gains session_id at completion, so a running job needs the log scanned."""
-    return data.get("session_id") or find_session(job)
+    """job.json only gains session_id at completion, so a running job needs the log scanned.
+    A finished job's recorded value is authoritative, including when it is null, so listing
+    a large store does not reread every log looking for an id that was never there."""
+    if data.get("session_id") or data.get("finished_at"): return data.get("session_id")
+    return find_session(job)
 
 def effective_status(job, data):
     """A job whose process is gone without recording an outcome is abandoned, not running."""

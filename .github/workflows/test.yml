@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    # The process tests (ps output, zombie reaping, process-group kills) are the ones most
+    # likely to differ by platform, and they are only ever exercised on macOS locally.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: '3.9' }   # the minimum version the README claims
+          - { os: ubuntu-latest, python: '3.13' }
+          - { os: macos-latest, python: '3.13' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python3 tests/test_runner.py
+
+  manifests:
+    # Both plugin manifests are hand-edited and must agree; a broken one breaks installs quietly.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          import json
+          shared = ("name", "version", "description")
+          loaded = {p: json.load(open(p)) for p in
+                    (".claude-plugin/plugin.json", ".codex-plugin/plugin.json")}
+          for key in shared:
+              values = {p: data.get(key) for p, data in loaded.items()}
+              assert len(set(values.values())) == 1, f"{key} differs: {values}"
+              assert values[".claude-plugin/plugin.json"], f"{key} is empty"
+          print("manifests agree on", ", ".join(shared))
+          PY

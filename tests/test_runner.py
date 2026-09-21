@@ -90,8 +90,16 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual((folder / 'stdout.log').read_text(), 'hello\n')
         self.assertEqual((folder / 'stderr.log').read_text(), 'error\n')
         self.assertEqual(Path(self.cli('path', job).stdout.strip()), folder.resolve())
-        for path, mode in [(folder, 0o700), *[(folder / n, 0o600) for n in ('job.json', 'stdout.log', 'stderr.log')]]:
-            self.assertEqual(stat.S_IMODE(path.stat().st_mode), mode)
+        for path, mode in [(self.store, 0o700), (self.store / 'jobs', 0o700), (folder, 0o700),
+                           *[(folder / n, 0o600) for n in ('job.json', 'stdout.log', 'stderr.log')]]:
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), mode, path)
+
+    def test_existing_loose_store_is_tightened(self):
+        (self.store / 'jobs').mkdir(parents=True)
+        for path in (self.store, self.store / 'jobs'): path.chmod(0o755)
+        self.run_code('pass')
+        for path in (self.store, self.store / 'jobs'):
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o700, path)
 
     def test_failure_and_missing_executable(self):
         result, job = self.run_code('raise SystemExit(3)')
@@ -121,6 +129,10 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(self.metadata(job)['session_id'], 'thr_1234')
         _, child = self.run_code('pass', '--parent', job)
         self.assertEqual(self.metadata(child)['parent_job'], job)
+        missing = self.cli('run', '--parent', '20990101-000000-aaaaaa', '--', 'true')
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn('unknown job', missing.stderr)
+        self.assertEqual(missing.stdout, '')
 
     def test_answers(self):
         fixtures = [
@@ -135,6 +147,11 @@ class RunnerTests(unittest.TestCase):
             ([{'type': 'result', 'subtype': 'error_max_turns', 'result': 'Incomplete'}], None),
             ([{'event': 'result', 'result': {'status': 'ERROR', 'response': 'Error'}}], None),
             ([{'type': 'item.completed', 'item': None}, {'type': 'result', 'result': {'unexpected': True}}], None),
+            ([{'type': 'item.completed', 'item': {'type': 'agent_message', 'text': 'Before failure'}},
+              {'type': 'turn.failed', 'error': {'message': 'model not supported'}}], None),
+            ([{'type': 'item.completed', 'item': {'type': 'error', 'message': 'metadata warning'}},
+              {'type': 'item.completed', 'item': {'type': 'agent_message', 'text': 'Codex final'}},
+              {'type': 'turn.completed', 'usage': {'output_tokens': 7}}], 'Codex final'),
         ]
         for events, expected in fixtures:
             with self.subTest(expected=expected, events=events):
@@ -295,6 +312,22 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(load({'HOME': str(self.root)}), self.root / '.ask-agent')
         self.assertEqual(load({'HOME': str(self.root), 'ASK_AGENT_HOME': '~/elsewhere'}),
                          self.root / 'elsewhere')
+
+    def test_finished_job_does_not_rescan_its_log(self):
+        _, job = self.run_code('pass')
+        with patch.object(ask_agent, 'find_session') as scan:
+            self.assertIsNone(ask_agent.effective_session(job, self.metadata(job)))
+            scan.assert_not_called()
+        running = {**self.metadata(job), 'finished_at': None, 'status': 'running'}
+        with patch.object(ask_agent, 'find_session', return_value='thr_live') as scan:
+            self.assertEqual(ask_agent.effective_session(job, running), 'thr_live')
+            scan.assert_called_once()
+
+    def test_structured_output_hint_matches_flags_not_prompt_text(self):
+        quiet = self.cli('run', '--', sys.executable, '-c', 'pass', '--output-format=json')
+        self.assertNotIn('no structured output flag detected', quiet.stderr)
+        loud = self.cli('run', '--', sys.executable, '-c', 'pass', 'please use --output-format stream-json')
+        self.assertIn('no structured output flag detected', loud.stderr)
 
     def test_validation_and_provider_flags(self):
         for args in [('path', '../../etc'), ('run', '--'), ('run', '--timeout', '0', '--', 'true'),
