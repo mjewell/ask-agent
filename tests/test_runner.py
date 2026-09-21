@@ -13,9 +13,10 @@ import types
 import unittest
 from unittest.mock import patch
 
-SKILL = Path(__file__).resolve().parents[1] / 'skills' / 'xagent'
-SCRIPT = SKILL / 'scripts' / 'xagent.py'
-spec = importlib.util.spec_from_file_location('xagent', SCRIPT)
+SKILL = Path(__file__).resolve().parents[1] / 'skills' / 'ask'
+SCRIPT = SKILL / 'scripts' / 'ask-agent.py'
+COMPAT_SCRIPT = SKILL / 'scripts' / 'xagent.py'
+spec = importlib.util.spec_from_file_location('ask_agent', SCRIPT)
 xagent = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(xagent)
 
@@ -69,7 +70,7 @@ class RunnerTests(unittest.TestCase):
     def test_installed_skill_is_self_contained(self):
         installed = self.root / 'installed-skill'
         shutil.copytree(SKILL, installed, ignore=shutil.ignore_patterns('__pycache__'))
-        script = installed / 'scripts' / 'xagent.py'
+        script = installed / 'scripts' / 'ask-agent.py'
         code = 'print(\'{"type":"result","subtype":"success","result":"Installed answer"}\')'
         result = subprocess.run([sys.executable, str(script), 'run', '--', sys.executable, '-c', code],
                                 cwd=self.root, env=self.env, text=True, capture_output=True, timeout=10)
@@ -78,6 +79,16 @@ class RunnerTests(unittest.TestCase):
                                 cwd=self.root, env=self.env, text=True, capture_output=True, timeout=10)
         self.assertEqual(answer.returncode, 0, answer.stderr)
         self.assertEqual(answer.stdout.strip(), 'Installed answer')
+
+    def test_legacy_runner_entry_point(self):
+        code = 'print(\'{"type":"result","subtype":"success","result":"Compatible"}\')'
+        result = subprocess.run([sys.executable, str(COMPAT_SCRIPT), 'run', '--', sys.executable, '-c', code],
+                                cwd=self.root, env=self.env, text=True, capture_output=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        answer = subprocess.run([sys.executable, str(COMPAT_SCRIPT), 'answer', result.stdout.strip()],
+                                cwd=self.root, env=self.env, text=True, capture_output=True, timeout=10)
+        self.assertEqual(answer.returncode, 0, answer.stderr)
+        self.assertEqual(answer.stdout.strip(), 'Compatible')
 
     def test_record_streams_permissions_and_verbatim_argv(self):
         code = 'import sys; print("hello"); print("error",file=sys.stderr)'

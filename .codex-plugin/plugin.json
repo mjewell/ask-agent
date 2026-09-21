@@ -1,18 +1,18 @@
 {
-  "name": "xagent",
+  "name": "ask-agent",
   "version": "0.1.0",
-  "description": "Durable, auditable cross-agent CLI handoffs.",
+  "description": "Durable, auditable coding-agent CLI handoffs.",
   "author": {
     "name": "Michael Jewell"
   },
   "skills": "./skills/",
   "interface": {
-    "displayName": "XAgent",
+    "displayName": "Ask Agent",
     "shortDescription": "Delegate tasks to Claude, Codex, and other CLIs.",
     "longDescription": "Hand tasks to another coding agent with saved logs, timeouts, final answers, and follow-up sessions.",
     "developerName": "Michael Jewell",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Use XAgent to delegate this task to another coding-agent CLI."
+    "defaultPrompt": "Use Ask Agent to delegate this task to another coding-agent CLI."
   }
 }

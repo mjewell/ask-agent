@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record and bound a coding-agent CLI invocation.
 
-The caller builds the provider command, with help from the xagent skill; this runner
+The caller builds the provider command, with help from the ask skill; this runner
 executes it exactly as written, captures both streams to files, enforces a timeout, and
 keeps a durable record of what ran. Knowledge about which flags a provider takes lives
 in the skill, not here.
@@ -165,7 +165,7 @@ def cmd_run(args):
     })
     print(job, flush=True)
     if not any(hint in item for item in args.argv for hint in STRUCTURED_HINTS):
-        print("xagent: no structured output flag detected; answer and session discovery may be unavailable",
+        print("ask-agent: no structured output flag detected; answer and session discovery may be unavailable",
               file=sys.stderr)
     return execute(job)
 
@@ -214,7 +214,7 @@ def execute(job):
                 status = "succeeded" if rc == 0 else "failed"
             data.update(status=status, exit_code=rc, finished_at=now(), stop_reason=reason, session_id=session_id)
             write_json(meta_path(job), data)
-        if error is not None: print(f"xagent: {error}", file=sys.stderr)
+        if error is not None: print(f"ask-agent: {error}", file=sys.stderr)
         return 0 if status == "succeeded" else 1
     finally:
         for signum, handler in previous_handlers.items(): signal.signal(signum, handler)
@@ -256,10 +256,10 @@ def cmd_answer(args):
     job = check_job(args.job)
     status = effective_status(job, job_data(job))
     if status != "succeeded":
-        raise SystemExit(f"job is {status}; inspect the logs with `xagent path {job}`")
+        raise SystemExit(f"job is {status}; inspect the logs with `ask-agent path {job}`")
     answer = find_answer(job)
     if answer is None:
-        raise SystemExit(f"no final answer found; inspect the logs with `xagent path {job}`")
+        raise SystemExit(f"no final answer found; inspect the logs with `ask-agent path {job}`")
     print(answer)
 
 def cmd_stop(args):
@@ -287,7 +287,7 @@ def split_argv(raw):
 
 def main():
     mine, provider_argv = split_argv(sys.argv[1:])
-    parser = argparse.ArgumentParser(prog="xagent", description=__doc__,
+    parser = argparse.ArgumentParser(prog="ask-agent", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="action", required=True)
     run = sub.add_parser("run", help="run a provider command, recorded and time-bounded")

@@ -1,1 +1,1 @@
-../skills/xagent/scripts/xagent.py
+../skills/ask/scripts/xagent.py

@@ -8,7 +8,7 @@ The binary is `agy`, not `gemini`.
 ## Recommended invocation
 
 ```sh
-python3 <skill-root>/scripts/xagent.py run --cwd /repo --timeout 900 \
+python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --timeout 900 \
   -- agy --output-format stream-json --model gemini-3.8-flash-low --mode plan \
      --print 'the full prompt text goes here'
 ```
@@ -36,7 +36,7 @@ agy tells you when you get this wrong:
 
 > `Error: --print took "--output-format" as its prompt, so the intended prompt was left as an argument and ignored.`
 
-Because of that, **`--prompt-file` is not used for agy.** Omit it. XAgent pipes `/dev/null` to stdin, the
+Because of that, **`--prompt-file` is not used for agy.** Omit it. Ask Agent pipes `/dev/null` to stdin, the
 command gets a clean EOF rather than hanging, and the prompt is still captured in the job record — in the
 `argv` field instead of `prompt.txt`. Use safe argument passing rather than interpolating
 the prompt into shell code.
@@ -61,7 +61,7 @@ Treat it as unverified; use `--print` until it is documented.
 
 `--sandbox` is a separate boolean that enables terminal restrictions, and composes with a mode. Without any
 of these the session runs in `request-review`, which waits for an approval nobody is there to give — so
-always pass a mode under xagent.
+always pass a mode under Ask Agent.
 
 ## Other flags worth knowing
 
@@ -70,10 +70,10 @@ always pass a mode under xagent.
 | `--add-dir PATH` | Adds a directory to the workspace. Repeatable. |
 | `--effort low\|medium\|high` | Reasoning effort. Narrower than other providers — three levels only. |
 | `--conversation ID` | Resumes a previous conversation. |
-| `-c`, `--continue` | Continues the most recent conversation. Avoid under xagent; name the id explicitly. |
+| `-c`, `--continue` | Continues the most recent conversation. Avoid under Ask Agent; name the id explicitly. |
 | `--json-schema` | Enforces a structured final result. |
 | `--disable-slash-commands` | Stops slash-command and skill expansion in print mode. |
-| `--print-timeout` | agy's own time limit. Leave it at 0 and let xagent's `--timeout` own this. |
+| `--print-timeout` | agy's own time limit. Leave it at 0 and let Ask Agent's `--timeout` own this. |
 
 ## Models and effort
 
@@ -87,14 +87,14 @@ if the point is an independent second opinion, that comes from a different lab, 
 ## Resuming
 
 ```sh
-sid=$(python3 <skill-root>/scripts/xagent.py session JOB)
-python3 <skill-root>/scripts/xagent.py run --cwd /repo --parent JOB \
+sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
+python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --parent JOB \
   -- agy --output-format stream-json --model gemini-3.8-flash-low --mode plan \
      --conversation "$sid" --print 'the follow-up prompt'
 ```
 
 agy calls it a conversation id. It appears as a root-level `conversation_id` on the `init` event, which
-`xagent session` recovers; `status` prints it too. To pull it out yourself:
+`ask-agent session` recovers; `status` prints it too. To pull it out yourself:
 
 ```sh
 jq -r 'select(.event == "init") | .conversation_id' "$dir/stdout.log"

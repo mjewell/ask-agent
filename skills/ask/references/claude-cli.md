@@ -6,7 +6,7 @@ you need a flag this file does not cover, or when something here does not work.
 ## Recommended invocation
 
 ```sh
-python3 <skill-root>/scripts/xagent.py run \
+python3 <skill-root>/scripts/ask-agent.py run \
   --cwd /repo --timeout 900 --prompt-file /tmp/task.md \
   -- claude --print --verbose --output-format stream-json \
      --permission-mode plan --permission-prompts none \
@@ -17,7 +17,7 @@ Piece by piece:
 
 | Part | Why |
 | --- | --- |
-| `--print` | Non-interactive mode. Without it the CLI will hang under xagent. |
+| `--print` | Non-interactive mode. Without it the CLI will hang under Ask Agent. |
 | `--verbose --output-format stream-json` | Structured event stream. Needed for session recovery and for parsing the result. |
 | `--permission-mode plan` | Permission posture. See the table below. |
 | `--permission-prompts none` | Never block waiting for an approval nobody is there to give. |
@@ -59,13 +59,13 @@ anything the task needs.
 ## Resuming
 
 ```sh
-sid=$(python3 <skill-root>/scripts/xagent.py session JOB)
-python3 <skill-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/followup.md --parent JOB \
+sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
+python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md --parent JOB \
   -- claude --print --verbose --output-format stream-json --resume "$sid" \
      --permission-mode plan --permission-prompts none
 ```
 
-The session id appears as `session_id` on the `system`/`init` event. `xagent session` recovers it, and `status` prints
+The session id appears as `session_id` on the `system`/`init` event. `ask-agent session` recovers it, and `status` prints
 it too. To pull it out yourself:
 
 ```sh
@@ -74,7 +74,7 @@ jq -r 'select(.type == "system" and .subtype == "init") | .session_id' "$dir/std
 
 **When deterministic resumption matters, prefer setting the id yourself.** Pass
 `--session-id "$(uuidgen | tr A-Z a-z)"` on the first run and you know the id up front, with nothing to
-recover. XAgent's recovery is a generic scan — it takes the first root-level `session_id`/`thread_id` it
+recover. Ask Agent's recovery is a generic scan — it takes the first root-level `session_id`/`thread_id` it
 sees in the output — which is right for today's CLIs but is inference, not a contract.
 
 Re-pass the permission mode on a resume. A resumed session does not necessarily keep the original's posture,
@@ -94,13 +94,3 @@ The `result` event carries the final text plus cost and duration:
 ```sh
 jq -r 'select(.type == "result")' "$dir/stdout.log"
 ```
-
-
-## Authentication from a sandbox
-
-If Claude reports “Not logged in” inside a sandbox but `claude auth status` works in
-an ordinary terminal, check the caller's permissions before asking the user to log
-in again. In one observed Codex-on-macOS setup, granting network access also enabled
-SecurityServer communication and restored access to the existing login. Request
-network access and retry the auth check first; that setup did not require copying
-credentials or granting broad access to the Keychain directory.

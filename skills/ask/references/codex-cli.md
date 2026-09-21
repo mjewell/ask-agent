@@ -6,7 +6,7 @@ when you need a flag this file does not cover, or when something here does not w
 ## Recommended invocation
 
 ```sh
-python3 <skill-root>/scripts/xagent.py run \
+python3 <skill-root>/scripts/ask-agent.py run \
   --cwd /repo --timeout 900 --prompt-file /tmp/task.md \
   -- codex exec --json -s read-only -C /repo --model gpt-5.6-sol -c model_reasoning_effort="medium" -
 ```
@@ -15,10 +15,10 @@ Piece by piece:
 
 | Part | Why |
 | --- | --- |
-| `exec` | Non-interactive mode. Interactive mode will hang under xagent. |
+| `exec` | Non-interactive mode. Interactive mode will hang under Ask Agent. |
 | `--json` | Structured event stream. Needed for session recovery and for parsing the result. |
 | `-s read-only` | Sandbox. See the table below; start read-only and widen only when the task writes. |
-| `-C /repo` | Working directory for the agent. Match it to xagent's `--cwd`. |
+| `-C /repo` | Working directory for the agent. Match it to Ask Agent's `--cwd`. |
 | `--model` | Always explicit, so the job record says what ran. |
 | `-c model_reasoning_effort="…"` | Effort. Codex sets this through config rather than a flag. |
 | `-` (trailing) | Read the prompt from stdin, explicitly. |
@@ -50,12 +50,12 @@ pass *both* a prompt argument and stdin, Codex appends stdin as a `<stdin>` bloc
 ## Resuming
 
 ```sh
-sid=$(python3 <skill-root>/scripts/xagent.py session JOB)
-python3 <skill-root>/scripts/xagent.py run --cwd /repo --prompt-file /tmp/followup.md --parent JOB \
+sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
+python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md --parent JOB \
   -- codex exec resume "$sid" --json -c sandbox_mode="read-only" -
 ```
 
-Codex calls this a thread id. `xagent session` recovers it, and `status` prints it too.
+Codex calls this a thread id. `ask-agent session` recovers it, and `status` prints it too.
 To pull it out yourself:
 
 ```sh

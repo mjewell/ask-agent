@@ -1,6 +1,6 @@
 {
-  "name": "xagent",
+  "name": "ask-agent",
   "version": "0.1.0",
-  "description": "Durable, auditable cross-agent CLI handoffs.",
+  "description": "Durable, auditable coding-agent CLI handoffs.",
   "author": { "name": "Michael Jewell" }
 }
