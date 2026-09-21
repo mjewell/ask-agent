@@ -94,10 +94,10 @@ Preserve provider sessions by default. Never pass `--no-session-persistence` (or
 equivalent setting) unless the user explicitly asks for an ephemeral session; a job
 that looks disposable now may need to be resumed later.
 
-`prune` deletes job records permanently. Run it without `--delete` first, show the user
-what matches, and only pass `--delete` once they have agreed to lose those records. Do
-not prune to reclaim space on your own initiative; a pruned job cannot be resumed through
-Ask Agent afterwards.
+`prune` deletes job records permanently and exempts nothing, including a job still
+running. Run it without `--delete` first, show the user what matches, and only pass
+`--delete` once they have agreed to lose those records. Do not prune on your own
+initiative; a pruned job cannot be resumed through Ask Agent afterwards.
 
 ## Boundaries
 

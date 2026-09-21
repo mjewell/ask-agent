@@ -26,9 +26,6 @@ from pathlib import Path
 ROOT = Path(os.environ.get("ASK_AGENT_HOME", "~/.ask-agent")).expanduser()
 JOB_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 SESSION_KEYS = ("session_id", "thread_id", "conversation_id")
-# Statuses prune must never remove. An abandoned or never-started record is not here:
-# that is exactly the garbage prune exists to collect.
-PROTECTED = ("running", "unknown")
 STRUCTURED_HINTS = ("--json", "--output-format", "--experimental-json")
 
 def now(): return datetime.now(timezone.utc).isoformat()
@@ -217,6 +214,10 @@ def execute(job):
 
         session_id = find_session(job)
         with state_lock():
+            if not meta_path(job).is_file():
+                raise SystemExit(f"ask-agent: the record for {job} disappeared while it ran "
+                                 f"(pruned or deleted); the command finished but its outcome "
+                                 f"could not be recorded")
             data = job_data(job)
             if reason is None and data.get("stop_requested"): reason = "stopped"
             status = {"timed_out": "timed_out", "interrupted": "cancelled", "stopped": "cancelled"}.get(reason)
@@ -308,20 +309,15 @@ def cmd_prune(args):
     matched = 0
     for job in known_jobs():
         data = read_job(job)
-        status = effective_status(job, data) if data else "corrupt"
         age = job_age_days(job, data)
-        if status in PROTECTED or age < args.older_than: continue
+        if age < args.older_than: continue
         matched += 1
-        deleted = False
-        if args.delete:
-            # A runner outlives its child's process group, so a job that looks abandoned may
-            # be one whose finalizing write is still to come. Any change since we looked defers
-            # it to the next run, and the listing reports it as kept.
-            with state_lock():
-                if read_job(job) == data: remove_job(job); deleted = True
-        print(json.dumps({"job": job, "status": status, "age_days": round(age, 2),
-                          "session_id": data.get("session_id"), "deleted": deleted},
-                         sort_keys=True))
+        # The status is reported, not enforced: the listing is what lets you see a job you
+        # would rather keep. Nothing is exempt, so the retention window is the real guard.
+        if args.delete: remove_job(job)
+        print(json.dumps({"job": job, "status": effective_status(job, data) if data else "corrupt",
+                          "age_days": round(age, 2), "session_id": data.get("session_id"),
+                          "deleted": bool(args.delete)}, sort_keys=True))
     if not args.delete and matched:
         print(f"ask-agent: {matched} job(s) match; re-run with --delete to remove them", file=sys.stderr)
     return 0

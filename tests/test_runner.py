@@ -184,7 +184,7 @@ class RunnerTests(unittest.TestCase):
                 self.assertEqual(self.metadata(job)['status'], expected, result.stderr)
                 self.assertEqual(result.returncode, 0 if delay == 0 else 1)
 
-    def start_live_job(self, code=None):
+    def start_live_job(self, code=None, stderr=None):
         output = self.root / 'live-job.txt'
         handle = output.open('w')
         self.addCleanup(handle.close)
@@ -192,7 +192,8 @@ class RunnerTests(unittest.TestCase):
                         'p=subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"]); '
                         'print(json.dumps({"thread_id":"thr_live", "child_pid":p.pid}),flush=True); time.sleep(60)')
         proc = subprocess.Popen([sys.executable, str(SCRIPT), 'run', '--timeout', '15', '--',
-                                 sys.executable, '-c', code], env=self.env, stdout=handle, stderr=subprocess.DEVNULL)
+                                 sys.executable, '-c', code], env=self.env, stdout=handle,
+                                stderr=stderr or subprocess.DEVNULL)
         def cleanup():
             if proc.poll() is None: proc.terminate()
             proc.wait(timeout=15)
@@ -362,30 +363,23 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(listed[old]['deleted'])
         self.assertEqual(set(p.name for p in (self.store / 'jobs').iterdir()), {recent})
 
-    def test_prune_never_removes_a_live_job(self):
-        _, job, _ = self.start_live_job()
-        self.age_job(job, 90, status='running', finished_at=None,
-                     process_group=self.metadata(job)['process_group'])
+    def test_prune_removes_a_running_job_and_the_runner_says_so(self):
+        """Nothing is exempt. Pruning a live job is the same as deleting its directory by
+        hand: the provider is still cleaned up, and the runner reports what happened."""
+        errors = (self.root / 'runner-stderr.txt').open('w+')
+        self.addCleanup(errors.close)
+        # A short-lived child: pruning does not interrupt a run, it only fails the final write.
+        brief = ('import json,subprocess,sys,time; '
+                 'p=subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"]); '
+                 'print(json.dumps({"thread_id":"thr_live","child_pid":p.pid}),flush=True); time.sleep(3)')
+        proc, job, child_pid = self.start_live_job(brief, stderr=errors)
         listed, _ = self.prune('--older-than', '0', '--delete')
-        self.assertNotIn(job, listed)
-        self.assertTrue((self.store / 'jobs' / job).is_dir())
-
-    def test_prune_protects_the_unverifiable_but_collects_the_abandoned(self):
-        for verdict, survives in ((None, True), (False, False)):
-            with self.subTest(verdict=verdict):
-                job = self.age_job(self.run_code('pass')[1], 90,
-                                   status='running', finished_at=None, process_group=999999)
-                with patch.object(ask_agent, 'process_matches_job', return_value=verdict):
-                    self.prune_in_process()
-                self.assertEqual((self.store / 'jobs' / job).is_dir(), survives)
-
-    def test_prune_defers_a_job_whose_record_changed_under_it(self):
-        job = self.age_job(self.run_code('pass')[1], 90)
-        stale = {**self.metadata(job), 'status': 'succeeded', 'exit_code': 7}
-        with patch.object(ask_agent, 'read_job', side_effect=[stale, self.metadata(job)]):
-            reported = json.loads(self.prune_in_process())
-        self.assertTrue((self.store / 'jobs' / job).is_dir())
-        self.assertFalse(reported['deleted'], 'a deferred job must still be reported, as kept')
+        self.assertTrue(listed[job]['deleted'])
+        self.assertFalse((self.store / 'jobs' / job).exists())
+        self.assertEqual(proc.wait(timeout=15), 1)
+        self.assert_dead(child_pid)
+        errors.seek(0)
+        self.assertIn('disappeared while it ran', errors.read())
 
     def test_prune_removes_a_record_too_damaged_to_read(self):
         bad = self.store / 'jobs' / '20260101-000000-badbad'

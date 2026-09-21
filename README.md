@@ -84,9 +84,14 @@ file was supplied. Artifacts are private (`0600` files inside a `0700` job direc
 and remain until deleted.
 
 `prune` lists what it would remove and removes nothing without `--delete`, so you can
-always see the cost first. It never touches a job that is still running or whose process
-it could not verify; a job whose process is gone without recording an outcome is removed,
-since that record is stale by definition. Ages are measured from when a job finished.
+see the cost first, including each match's current status. Ages are measured from when a
+job finished.
+
+Nothing is exempt. The retention window is the guard: a job old enough to match has
+almost always been finished for weeks. Pruning one that is still running is the same as
+deleting its directory by hand — it does not interrupt the run, the provider process is
+still cleaned up at the end, but the output is lost and the runner exits reporting that
+the record disappeared.
 
 Pruning discards the job record, not the provider's own session — that lives with the
 provider and survives. What is lost is the session ID pointing at it, so a pruned
