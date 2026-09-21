@@ -35,7 +35,6 @@ pass *both* a prompt argument and stdin, Codex appends stdin as a `<stdin>` bloc
 | `workspace-write` | Writes within the working directory | Implementation tasks. |
 | `danger-full-access` | No restriction | Only inside a container or VM. |
 
-
 ## Other flags worth knowing
 
 | Flag | Effect |

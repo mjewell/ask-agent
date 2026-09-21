@@ -176,9 +176,9 @@ def execute(job):
     proc = None; reason = None; rc = None; previous_handlers = {}
     error = None
     try:
-        for signum in (signal.SIGINT, signal.SIGTERM):
-            previous_handlers[signum] = signal.signal(signum, _raise_interrupted)
         try:
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                previous_handlers[signum] = signal.signal(signum, _raise_interrupted)
             with private_file(job_dir(job) / "stdout.log") as out, private_file(job_dir(job) / "stderr.log") as err:
                 with state_lock():
                     proc = subprocess.Popen(data["argv"], cwd=data["cwd"], stdin=stdin_source or subprocess.DEVNULL,

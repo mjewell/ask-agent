@@ -39,7 +39,6 @@ Claude Code reads the prompt from stdin under `--print`, so there is no trailing
 With `none`, anything that would prompt is denied automatically and the run does not block — which is what
 you want unattended. The permission mode still governs everything else.
 
-
 ## Other flags worth knowing
 
 | Flag | Effect |
@@ -50,6 +49,7 @@ you want unattended. The permission mode still governs everything else.
 | `--restricted` | Extra-constrained mode. Conflicts with `bypassPermissions`. |
 | `--resume SESSION_ID` | Continues an existing session. |
 | `--session-id UUID` | Sets the session id up front instead of discovering it afterwards. |
+| `--no-session-persistence` | Disables saving the session. Never use unless the user explicitly requests an ephemeral session. |
 | `--output-format json` | One final JSON result instead of a stream, when you do not need the steps. |
 
 Narrowing tools is often a better fit than loosening the permission mode. A review that only needs to read
@@ -100,7 +100,7 @@ jq -r 'select(.type == "result")' "$dir/stdout.log"
 
 If Claude reports “Not logged in” inside a sandbox but `claude auth status` works in
 an ordinary terminal, check the caller's permissions before asking the user to log
-in again. In Codex on macOS, granting network access also enables SecurityServer
-communication and can restore access to the existing login. Request network access
-and retry the auth check; copying credentials or granting the Keychain directory
-is not needed for that fix.
+in again. In one observed Codex-on-macOS setup, granting network access also enabled
+SecurityServer communication and restored access to the existing login. Request
+network access and retry the auth check first; that setup did not require copying
+credentials or granting broad access to the Keychain directory.

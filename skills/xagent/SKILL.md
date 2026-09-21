@@ -12,6 +12,10 @@ separate job record.
 Run commands with `python3 <skill-root>/scripts/xagent.py`, where `<skill-root>` is
 the directory containing this SKILL.md.
 
+Every provider invocation requires network access. Before any XAgent `run` or resumed
+call, request network access when it is not already available. Do not launch and wait
+for an avoidable network failure.
+
 ## Prepare the handoff
 
 Use the provider the user requested. Otherwise propose an installed provider suited
@@ -82,6 +86,10 @@ To continue a conversation, use `session JOB`, build the provider's resume comma
 from its reference, and pass `--parent JOB` on the new run. Reapply model, effort, and permission
 settings explicitly. Jobs live under `.xagent/jobs/` in the caller's current directory,
 or `$XAGENT_HOME/jobs/`; use the same store for later commands.
+
+Preserve provider sessions by default. Never pass `--no-session-persistence` (or an
+equivalent setting) unless the user explicitly asks for an ephemeral session; a job
+that looks disposable now may need to be resumed later.
 
 ## Boundaries
 

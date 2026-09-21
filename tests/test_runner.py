@@ -169,8 +169,8 @@ class RunnerTests(unittest.TestCase):
         handle = output.open('w')
         self.addCleanup(handle.close)
         code = code or ('import json,subprocess,sys,time; '
-                'p=subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"]); '
-                'print(json.dumps({"thread_id":"thr_live", "child_pid":p.pid}),flush=True); time.sleep(60)')
+                        'p=subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"]); '
+                        'print(json.dumps({"thread_id":"thr_live", "child_pid":p.pid}),flush=True); time.sleep(60)')
         proc = subprocess.Popen([sys.executable, str(SCRIPT), 'run', '--timeout', '15', '--',
                                  sys.executable, '-c', code], env=self.env, stdout=handle, stderr=subprocess.DEVNULL)
         def cleanup():
