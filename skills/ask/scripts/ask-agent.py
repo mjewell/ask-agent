@@ -352,11 +352,15 @@ def cmd_prune(args):
         age = job_age_days(job, data)
         if age < args.older_than: continue
         matched += 1
+        # A running job may have emitted its session id before job.json is updated.
+        # Recover it before deleting the log that contains it.
+        session_id = effective_session(job, data) if data else None
+        status = effective_status(job, data) if data else "corrupt"
         # The status is reported, not enforced: the listing is how you spot a job worth
         # keeping. Nothing is exempt, so the retention window is the guard.
         if args.delete: remove_job(job)
-        print(json.dumps({"job": job, "status": effective_status(job, data) if data else "corrupt",
-                          "age_days": round(age, 2), "session_id": data.get("session_id"),
+        print(json.dumps({"job": job, "status": status,
+                          "age_days": round(age, 2), "session_id": session_id,
                           "deleted": bool(args.delete)}, sort_keys=True))
     if not args.delete and matched:
         print(f"ask-agent: {matched} job(s) match; re-run with --delete to remove them", file=sys.stderr)

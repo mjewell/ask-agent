@@ -1,12 +1,11 @@
 # Ask Agent
 
-Ask another coding agent for a second opinion or hand it a task. Ask Agent saves the
-conversation, bounds the run with a timeout, and keeps the provider session available
-for follow-ups.
+Ask another coding agent for a second opinion or give it a task. Ask Agent saves the
+prompt and logs, stops jobs that run too long, and keeps sessions available for
+follow-up questions.
 
-The main [`ask` skill](skills/ask/SKILL.md) owns the shared policy, provider references,
-and runner. Thin `ask-claude`, `ask-codex`, and `ask-agy` skills preselect a provider
-without duplicating that implementation.
+The main [`ask` skill](skills/ask/SKILL.md) contains the instructions and runner.
+The `ask-claude`, `ask-codex`, and `ask-agy` skills choose a provider for you.
 
 ## Quickstart
 
@@ -35,10 +34,9 @@ npx skills add mjewell/ask-agent --skill ask --skill ask-agy
 Installing a shortcut by itself does not implicitly install sibling skills. If only a
 shortcut was installed, run the corresponding command above to add `ask`.
 
-Your agent proposes a provider, model, and effort for approval, prepares the prompt,
-runs the task with network access, and returns the answer. Choices already specified
-or approved do not need another confirmation. Provider sessions remain persistent by
-default so you can ask follow-up questions later.
+Your agent asks you to approve the provider, model, and effort, then runs the task
+and returns the answer. Choices you have already approved need no second approval.
+Sessions are saved by default so you can ask follow-up questions.
 
 Requires Node.js for the installer, macOS or Linux, Python 3.9+, and an installed,
 authenticated provider CLI. The runner needs no Python packages.
@@ -68,9 +66,8 @@ how to pass its prompt.
 caller. Timeout, stop, and normal completion clean up the provider's process group,
 including children still in that group. Detached processes are outside that scope.
 
-`wait` is for that backgrounded case: it polls once a second and exits with the job's
-own outcome, so nothing has to hand-roll a sleep loop. Giving up on a wait leaves the
-job running.
+Use `wait` for a background job. It checks once a second and returns the job's
+outcome. If `wait` gives up, the job keeps running.
 
 Status is `queued`, `running`, `succeeded`, `failed`, `timed_out`, `cancelled`,
 `abandoned` (the process disappeared), `unknown` (its identity could not be checked),
@@ -88,8 +85,8 @@ Jobs live in `~/.ask-agent/jobs/`, one store for every project, so a job started
 one directory stays listable and resumable from anywhere. Each record keeps the `cwd`
 it ran in. `ASK_AGENT_JOB` marks a running process so `stop` can verify its identity.
 
-Jobs continuing one conversation share a `session_id`, which with `created_at` is what
-orders a chain of follow-ups; there is no separate link between them.
+Jobs in the same conversation share a `session_id`. Use that ID and `created_at` to
+find follow-ups in order; there is no separate link between them.
 
 Set `ASK_AGENT_HOME` for a separate store. It must be an absolute path: a relative one
 would put the store wherever a command ran from, hiding every job started elsewhere,
@@ -99,9 +96,8 @@ Each job contains `job.json`, `stdout.log`, `stderr.log`, and `prompt.txt` when 
 file was supplied. Artifacts are private (`0600` files inside a `0700` job directory)
 and remain until deleted.
 
-`prune` lists what it would remove and removes nothing without `--delete`, so you can
-see the cost first, including each match's current status. Ages are measured from when a
-job finished.
+`prune` shows matching jobs and their status. It deletes nothing unless you pass
+`--delete`. Finished jobs are aged from completion; unfinished jobs from creation.
 
 Nothing is exempt. The retention window is the guard: a job old enough to match has
 almost always been finished for weeks. Pruning one that is still running is the same as
@@ -109,10 +105,9 @@ deleting its directory by hand — it does not interrupt the run, the provider p
 still cleaned up at the end, but the output is lost and the runner exits reporting that
 the record disappeared.
 
-Pruning discards the job record, not the provider's own session — that lives with the
-provider and survives. What is lost is the session ID pointing at it, so a pruned
-conversation is no longer resumable through Ask Agent. The listing prints each session ID
-before it goes.
+Pruning removes the job record but leaves the provider's session intact. The listing
+prints each known session ID, including one found in a running job's log, before
+deleting it. Save that ID if you might resume the session later.
 
 Logs and answers are untrusted provider output and can contain secrets. The store
 grows until you delete jobs from it. Ask Agent provides no sandbox; permissions belong

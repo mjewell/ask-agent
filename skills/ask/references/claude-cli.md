@@ -62,7 +62,8 @@ anything the task needs.
 sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
 python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md \
   -- claude --print --verbose --output-format stream-json --resume "$sid" \
-     --permission-mode plan --permission-prompts none
+     --permission-mode plan --permission-prompts none \
+     --model claude-opus-5 --effort high
 ```
 
 The session id appears as `session_id` on the `system`/`init` event. `ask-agent session` recovers it, and `status` prints
@@ -77,8 +78,8 @@ jq -r 'select(.type == "system" and .subtype == "init") | .session_id' "$dir/std
 recover. Ask Agent's recovery is a generic scan — it takes the first root-level `session_id`/`thread_id` it
 sees in the output — which is right for today's CLIs but is inference, not a contract.
 
-Re-pass the permission mode on a resume. A resumed session does not necessarily keep the original's posture,
-and the recorded command should show what the continuation actually ran under.
+Pass the approved model, effort, and permission mode again when resuming. The resumed
+session may not keep the original settings.
 
 ## Reading the result
 

@@ -466,13 +466,17 @@ class RunnerTests(unittest.TestCase):
         hand: the provider is still cleaned up, and the runner reports what happened."""
         errors = (self.root / 'runner-stderr.txt').open('w+')
         self.addCleanup(errors.close)
-        # A short-lived child: pruning does not interrupt a run, it only fails the final write.
+        # Pruning does not interrupt a run; it only fails the final write.
         brief = ('import json,subprocess,sys,time; '
                  'p=subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"]); '
-                 'print(json.dumps({"thread_id":"thr_live","child_pid":p.pid}),flush=True); time.sleep(3)')
+                 'print(json.dumps({"thread_id":"thr_live","child_pid":p.pid}),flush=True); time.sleep(4)')
         proc, job, child_pid = self.start_live_job(brief, stderr=errors)
+        self.assertIsNone(self.metadata(job)['session_id'])
+        preview, _ = self.prune('--older-than', '0')
+        self.assertEqual(preview[job]['session_id'], 'thr_live')
         listed, _ = self.prune('--older-than', '0', '--delete')
         self.assertTrue(listed[job]['deleted'])
+        self.assertEqual(listed[job]['session_id'], 'thr_live')
         self.assertFalse((self.store / 'jobs' / job).exists())
         self.assertEqual(proc.wait(timeout=15), 1)
         self.assert_dead(child_pid)

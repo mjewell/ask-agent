@@ -55,11 +55,10 @@ and use safe argument passing rather than interpolating prompt text into shell c
 Build the command from the chosen provider's reference, using the approved settings.
 Pass it unchanged after the runner's `--`, with the task's working directory and timeout.
 
-The runner prints a job ID and blocks until completion. Background it when the work
-should run alongside your current task: redirect its stdout to a task-specific file to
-capture the job ID, wait for that file to contain an ID, then block on `wait JOB` when
-you need the result. Do not hand-roll a polling loop; `wait` exits with the job's own
-outcome and leaves the job alone if it gives up.
+The runner prints a job ID and waits for completion. To run it in the background,
+save its stdout to a task-specific file. Once that file contains the job ID, use
+`wait JOB` when you need the result. Do not hand-roll a polling loop. `wait` reports
+the outcome; if it gives up, the job keeps running.
 
 Exit codes report the outcome: `0` succeeded, `124` timed out, `130` cancelled, `1`
 anything else, and from `wait` alone, `125` for giving up on a job that is still running.
@@ -68,9 +67,9 @@ anything else, and from `wait` alone, `125` for giving up on a job that is still
 python3 <skill-root>/scripts/ask-agent.py answer JOB
 ```
 
-Use `answer` rather than extracting text yourself: it refuses on a run that failed, where
-the last message in the log is often an error or partial text. Every provider marks a
-failed turn differently, and its reference says how.
+Use `answer` rather than extracting text yourself. It refuses failed jobs, whose logs
+may end with an error or a partial answer. Each provider marks a failed turn differently,
+and its reference says how.
 
 Return the useful result to the user, including material disagreements or limitations.
 A successful process exit is not proof that the work is correct. If `answer` cannot
@@ -95,10 +94,10 @@ dir=$(python3 <skill-root>/scripts/ask-agent.py path JOB)
 | `stop JOB` | Stop the job's process group. |
 | `prune [--older-than DAYS] [--delete]` | List old jobs; `--delete` removes them. |
 
-To continue a conversation, use `session JOB` and build the provider's resume command
-from its reference. Reapply model, effort, and permission settings explicitly. Jobs
-continuing one conversation share a session id, and `status` prints it on every job, so
-filtering the listing on that id recovers the chain, oldest first.
+To continue a conversation, get its ID with `session JOB` and use the resume command
+in the provider reference. Pass the approved model, effort, and permission settings
+again. Jobs in one conversation share a session ID, and `status` prints it on every
+job, so filtering the listing on that ID recovers the chain, oldest first.
 
 Jobs live under `~/.ask-agent/jobs/`, or `$ASK_AGENT_HOME/jobs/` when that is set to an
 absolute path, so a job remains resumable from any directory.

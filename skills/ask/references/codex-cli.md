@@ -52,7 +52,8 @@ pass *both* a prompt argument and stdin, Codex appends stdin as a `<stdin>` bloc
 ```sh
 sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
 python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md \
-  -- codex exec resume "$sid" --json -c sandbox_mode="read-only" -
+  -- codex exec resume "$sid" --json --model gpt-5.6-sol \
+     -c model_reasoning_effort="medium" -c sandbox_mode="read-only" -
 ```
 
 Codex calls this a thread id. `ask-agent session` recovers it, and `status` prints it too.
@@ -65,9 +66,8 @@ jq -r 'select(.type == "thread.started") | .thread_id' "$dir/stdout.log"
 Codex has no flag for assigning a thread id up front, so recovery is the only route to one here — unlike
 Claude Code, where `--session-id` can be set on the first run.
 
-**`resume` does not accept `-s/--sandbox`** — it rejects the flag outright. Re-pin the sandbox with
-`-c sandbox_mode="…"` instead. Do re-pin it: a resumed thread does not necessarily keep the original
-session's settings, and the recorded command should show what the continuation actually ran under.
+`resume` rejects `-s/--sandbox`. Set `-c sandbox_mode="…"` instead. Pass the approved
+model and effort again too; the resumed thread may not keep the original settings.
 
 ## Reading the result
 
