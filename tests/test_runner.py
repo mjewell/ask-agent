@@ -377,6 +377,22 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(proc.wait(timeout=15), 0)
 
+    def test_wait_does_not_call_a_finishing_job_abandoned(self):
+        """A job whose child has exited but whose outcome is not yet written looks
+        abandoned, because the record still says running and the process is gone. Acting
+        on that first sighting reports a successful run as abandoned."""
+        _, job = self.run_code('pass')
+        args = types.SimpleNamespace(job=job, timeout=None)
+        with patch.object(ask_agent, 'effective_status', side_effect=['abandoned', 'succeeded']), \
+             patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ask_agent.cmd_wait(args), 0)
+        self.assertEqual(out.getvalue().strip(), 'succeeded')
+        # A reading that persists is a real abandonment.
+        with patch.object(ask_agent, 'effective_status', side_effect=['abandoned', 'abandoned']), \
+             patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ask_agent.cmd_wait(args), 1)
+        self.assertEqual(out.getvalue().strip(), 'abandoned')
+
     def test_wait_gives_up_without_stopping_the_job(self):
         proc, job, child_pid = self.start_live_job()
         result = self.cli('wait', job, '--timeout', '1')

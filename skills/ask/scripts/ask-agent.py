@@ -375,11 +375,16 @@ def cmd_wait(args):
     # final write of the record.
     limit = args.timeout if args.timeout is not None else (data.get("timeout_seconds") or 1800) + 60
     deadline = time.monotonic() + limit
+    previous = None
     while True:
         status = effective_status(job, job_data(job))
-        if status in TERMINAL:
+        # `abandoned` is inferred from a live record whose process is gone, which is also
+        # how a healthy job looks between its child exiting and the runner recording the
+        # outcome. One sighting is not a conclusion; a second, after a fresh read, is.
+        if status in TERMINAL and (status != "abandoned" or previous == "abandoned"):
             print(status)
             return exit_code(status)
+        previous = status
         if time.monotonic() >= deadline:
             print(f"ask-agent: gave up waiting for {job} after {limit:g}s; "
                   f"it is {status} and was not stopped", file=sys.stderr)
