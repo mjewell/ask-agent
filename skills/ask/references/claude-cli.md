@@ -60,7 +60,7 @@ anything the task needs.
 
 ```sh
 sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
-python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md --parent JOB \
+python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md \
   -- claude --print --verbose --output-format stream-json --resume "$sid" \
      --permission-mode plan --permission-prompts none
 ```
@@ -82,14 +82,12 @@ and the recorded command should show what the continuation actually ran under.
 
 ## Reading the result
 
-The log is one JSON object per line. The final assistant message:
+`ask-agent answer JOB` reads this format. The rest is for reading the log yourself.
 
-```sh
-jq -rs 'map(select(.type == "assistant")) | last | .message.content[] | select(.type == "text") | .text' \
-  "$dir/stdout.log"
-```
+A failed turn is marked on the `result` event by `is_error`, or by a `subtype` other than `success`. The
+`assistant` events before it are the model's working, not its conclusion.
 
-The `result` event carries the final text plus cost and duration:
+The log is one JSON object per line. The `result` event carries the final text plus cost and duration:
 
 ```sh
 jq -r 'select(.type == "result")' "$dir/stdout.log"

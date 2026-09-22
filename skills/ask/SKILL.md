@@ -68,6 +68,10 @@ anything else, and from `wait` alone, `125` for giving up on a job that is still
 python3 <skill-root>/scripts/ask-agent.py answer JOB
 ```
 
+Use `answer` rather than extracting text yourself: it refuses on a run that failed, where
+the last message in the log is often an error or partial text. Every provider marks a
+failed turn differently, and its reference says how.
+
 Return the useful result to the user, including material disagreements or limitations.
 A successful process exit is not proof that the work is correct. If `answer` cannot
 extract a result or the job failed, use `path JOB` and inspect `stderr.log` and
@@ -91,10 +95,13 @@ dir=$(python3 <skill-root>/scripts/ask-agent.py path JOB)
 | `stop JOB` | Stop the job's process group. |
 | `prune [--older-than DAYS] [--delete]` | List old jobs; `--delete` removes them. |
 
-To continue a conversation, use `session JOB`, build the provider's resume command
-from its reference, and pass `--parent JOB` on the new run. Reapply model, effort, and permission
-settings explicitly. Jobs live under `~/.ask-agent/jobs/`, or `$ASK_AGENT_HOME/jobs/`
-when that is set to an absolute path, so a job remains resumable from any directory.
+To continue a conversation, use `session JOB` and build the provider's resume command
+from its reference. Reapply model, effort, and permission settings explicitly. Jobs
+continuing one conversation share a session id, and `status` prints it on every job, so
+filtering the listing on that id recovers the chain, oldest first.
+
+Jobs live under `~/.ask-agent/jobs/`, or `$ASK_AGENT_HOME/jobs/` when that is set to an
+absolute path, so a job remains resumable from any directory.
 
 Preserve provider sessions by default. Never pass `--no-session-persistence` (or an
 equivalent setting) unless the user explicitly asks for an ephemeral session; a job

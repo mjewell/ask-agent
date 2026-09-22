@@ -35,7 +35,6 @@ def store_root():
 ROOT = store_root()
 JOB_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 SESSION_KEYS = ("session_id", "thread_id", "conversation_id")
-STRUCTURED_HINTS = ("--json", "--output-format", "--experimental-json")
 TERMINAL = ("succeeded", "failed", "timed_out", "cancelled", "abandoned")
 # 124 is what timeout(1) reports, and 130 is a SIGINT exit; a caller reading only the exit
 # code of a backgrounded run can tell a provider failure from a deadline it set itself.
@@ -179,8 +178,6 @@ def cmd_run(args):
     cwd = Path(args.cwd).resolve()
     if not cwd.is_dir(): raise SystemExit(f"--cwd is not a directory: {cwd}")
     prompt = read_prompt(args.prompt_file)
-    parent = check_job(args.parent) if args.parent else None
-    if parent: job_data(parent)   # fail now rather than record lineage to a job that is not there
 
     job = time.strftime("%Y%m%d-%H%M%S", time.gmtime()) + "-" + secrets.token_hex(3)
     private_dir(ROOT); private_dir(jobs_root())
@@ -188,14 +185,11 @@ def cmd_run(args):
     if prompt is not None:
         with private_file(folder / "prompt.txt", "w") as out: out.write(prompt)
     write_json(meta_path(job), {
-        "job": job, "parent_job": parent, "argv": args.argv, "cwd": str(cwd),
+        "job": job, "argv": args.argv, "cwd": str(cwd),
         "timeout_seconds": args.timeout, "prompt_file": "prompt.txt" if prompt is not None else None,
         "created_at": now(), "status": "queued", "exit_code": None, "session_id": None,
     })
     print(job, flush=True)
-    if not any(item.split("=", 1)[0] in STRUCTURED_HINTS for item in args.argv):
-        print("ask-agent: no structured output flag detected; answer and session discovery may be unavailable",
-              file=sys.stderr)
     return execute(job)
 
 def execute(job):
@@ -248,6 +242,11 @@ def execute(job):
             data.update(status=status, exit_code=rc, finished_at=now(), stop_reason=reason, session_id=session_id)
             write_json(meta_path(job), data)
         if error is not None: print(f"ask-agent: {error}", file=sys.stderr)
+        if status == "succeeded" and session_id is None:
+            # Observed rather than guessed from the provider's flags, and only on
+            # success: a failed job has already reported its failure.
+            print("ask-agent: no session id in this job's output; it cannot be resumed, and the "
+                  "command may not have asked for structured output", file=sys.stderr)
         return exit_code(status)
     finally:
         for signum, handler in previous_handlers.items(): signal.signal(signum, handler)
@@ -271,22 +270,27 @@ def known_jobs():
     return sorted(p.name for p in jobs_root().glob("*") if p.is_dir() and JOB_RE.fullmatch(p.name))
 
 def cmd_status(args):
-    """A listing succeeds even when one record in it is unreadable; a single named job that
-    cannot be read is the whole answer, so it fails instead."""
+    """A listing succeeds even when one record in it is unreadable; a single named job
+    that cannot be read fails instead. Oldest first, by recorded start time rather than job
+    id: ids carry a random suffix, so two started in the same second sort arbitrarily."""
     jobs = [check_job(args.job)] if args.job else known_jobs()
     unreadable = False
+    rows = []
     for job in jobs:
         if not meta_path(job).is_file():
-            print(json.dumps({"job": job, "status": "missing"}, sort_keys=True))
+            rows.append((record_time(job, {}), {"job": job, "status": "missing"}))
             unreadable = True; continue
         try: data = job_data(job)
         except (SystemExit, OSError, ValueError) as exc:
-            print(json.dumps({"job": job, "status": "corrupt", "error": str(exc)}))
+            rows.append((record_time(job, {}), {"job": job, "status": "corrupt", "error": str(exc)}))
             unreadable = True; continue
-        fields = {key: data.get(key) for key in ("job", "exit_code", "cwd", "created_at",
-                                                 "finished_at", "parent_job")}
-        print(json.dumps({**fields, "status": effective_status(job, data),
-                          "session_id": effective_session(job, data)}, sort_keys=True))
+        fields = {key: data.get(key) for key in ("job", "exit_code", "cwd",
+                                                 "created_at", "finished_at")}
+        rows.append((record_time(job, data, "created_at"),
+                     {**fields, "status": effective_status(job, data),
+                      "session_id": effective_session(job, data)}))
+    for _, row in sorted(rows, key=lambda row: row[0]):   # ties keep the job-id order
+        print(json.dumps(row, sort_keys=True))
     return 1 if args.job and unreadable else 0
 
 def cmd_session(args):
@@ -317,15 +321,20 @@ def read_job(job):
     try: return job_data(job)
     except (SystemExit, OSError, ValueError): return {}
 
-def job_age_days(job, data):
-    """Age from when the job stopped mattering, falling back to the directory for a
-    record too damaged to read."""
-    stamp = data.get("finished_at") or data.get("created_at")
-    if isinstance(stamp, str):
-        try: return (time.time() - datetime.fromisoformat(stamp).timestamp()) / 86400
-        except ValueError: pass
-    try: return (time.time() - job_dir(job).stat().st_mtime) / 86400
+def record_time(job, data, *keys):
+    """The first of these timestamps the record carries, in epoch seconds, falling back to
+    the job directory for a record too damaged to hold one."""
+    for key in keys:
+        stamp = data.get(key)
+        if isinstance(stamp, str):
+            try: return datetime.fromisoformat(stamp).timestamp()
+            except ValueError: pass
+    try: return job_dir(job).stat().st_mtime
     except OSError: return 0.0
+
+def job_age_days(job, data):
+    """Age from when the job finished, or from when it started if it never did."""
+    return (time.time() - record_time(job, data, "finished_at", "created_at")) / 86400
 
 def remove_job(job):
     """Delete one job directory. job_dir validates the id; the rest refuses anything
@@ -405,7 +414,6 @@ def main():
     run.add_argument("--cwd", default=".", help="working directory for the provider command")
     run.add_argument("--timeout", type=int, default=1800, help="seconds before the process group is terminated")
     run.add_argument("--prompt-file", metavar="PATH", help="file piped to the command's stdin; `-` reads this process's stdin")
-    run.add_argument("--parent", metavar="JOB", help="record this job as a continuation of an earlier one")
     status = sub.add_parser("status", help="show job state"); status.add_argument("job", nargs="?")
     answer = sub.add_parser("answer", help="print the final answer from a successful job"); answer.add_argument("job")
     path = sub.add_parser("path", help="print a job's directory, which holds stdout.log and stderr.log")

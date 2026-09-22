@@ -130,12 +130,20 @@ class RunnerTests(unittest.TestCase):
         _, job = self.run_code('print(\'{"thread_id":"thr_1234"}\')')
         self.assertEqual(self.cli('session', job).stdout.strip(), 'thr_1234')
         self.assertEqual(self.metadata(job)['session_id'], 'thr_1234')
-        _, child = self.run_code('pass', '--parent', job)
-        self.assertEqual(self.metadata(child)['parent_job'], job)
-        missing = self.cli('run', '--parent', '20990101-000000-aaaaaa', '--', 'true')
-        self.assertNotEqual(missing.returncode, 0)
-        self.assertIn('unknown job', missing.stderr)
-        self.assertEqual(missing.stdout, '')
+
+    def test_status_lists_by_start_time_not_job_id(self):
+        """Ids carry a random suffix, so two jobs started in the same second sort
+        arbitrarily by name. The recorded start time orders them."""
+        early, late = '20260101-120000-ffffff', '20260101-120000-000000'
+        for job, moment in ((early, '2026-01-01T12:00:00.100000+00:00'),
+                            (late, '2026-01-01T12:00:00.900000+00:00')):
+            folder = self.store / 'jobs' / job
+            folder.mkdir(parents=True)
+            (folder / 'job.json').write_text(json.dumps(
+                {'job': job, 'status': 'succeeded', 'created_at': moment, 'finished_at': moment}))
+        listed = [json.loads(line)['job'] for line in self.cli('status').stdout.splitlines()]
+        self.assertEqual(listed, [early, late])
+        self.assertEqual(sorted(listed), [late, early], 'id order must be the opposite')
 
     def test_answers(self):
         fixtures = [
@@ -271,7 +279,6 @@ class RunnerTests(unittest.TestCase):
     def test_warning_and_status_listing_with_corrupt_record(self):
         result, good = self.run_code('pass')
         self.assertEqual(result.returncode, 0)
-        self.assertIn('no structured output flag detected', result.stderr)
         _, bad = self.run_code('pass')
         (self.store / 'jobs' / bad / 'job.json').write_text('{broken')
         result = self.cli('status')
@@ -341,8 +348,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(records[good]['status'], 'succeeded')
         self.assertEqual(listed.returncode, 0)
         self.assertEqual(listed.stderr, '')
-        for args in (('answer', bad), ('session', bad), ('wait', bad), ('stop', bad),
-                     ('run', '--parent', bad, '--', 'true')):
+        for args in (('answer', bad), ('session', bad), ('wait', bad), ('stop', bad)):
             with self.subTest(args=args):
                 result = self.cli(*args)
                 self.assertNotEqual(result.returncode, 0)
@@ -353,13 +359,6 @@ class RunnerTests(unittest.TestCase):
         matched, _ = self.prune()
         self.assertEqual(matched[bad]['status'], 'corrupt')
         self.assertNotIn(good, matched)
-
-    def test_status_reports_lineage(self):
-        _, parent = self.run_code('pass')
-        _, child = self.run_code('pass', '--parent', parent)
-        records = {e['job']: e for e in map(json.loads, self.cli('status').stdout.splitlines())}
-        self.assertEqual(records[child]['parent_job'], parent)
-        self.assertIsNone(records[parent]['parent_job'])
 
     def test_wait_reports_each_outcome(self):
         for code, status, expected in [('pass', 'succeeded', 0), ('raise SystemExit(3)', 'failed', 1)]:
@@ -418,11 +417,19 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(ask_agent.effective_session(job, running), 'thr_live')
             scan.assert_called_once()
 
-    def test_structured_output_hint_matches_flags_not_prompt_text(self):
-        quiet = self.cli('run', '--', sys.executable, '-c', 'pass', '--output-format=json')
-        self.assertNotIn('no structured output flag detected', quiet.stderr)
-        loud = self.cli('run', '--', sys.executable, '-c', 'pass', 'please use --output-format stream-json')
-        self.assertIn('no structured output flag detected', loud.stderr)
+    def test_missing_session_is_reported_from_the_outcome_not_the_flags(self):
+        """The runner does not guess from a provider's flag names whether its output will
+        be parseable; it reports what the run produced."""
+        quiet, _ = self.run_code('print(\'{"session_id":"sess_1"}\')')
+        self.assertNotIn('no session id', quiet.stderr)
+        # argv is no longer consulted, so a structured-looking flag changes nothing.
+        looks_structured = self.cli('run', '--', sys.executable, '-c', 'pass', '--output-format=json')
+        self.assertIn('no session id', looks_structured.stderr)
+        loud, _ = self.run_code('pass')
+        self.assertIn('no session id', loud.stderr)
+        # Not reported for a failed job, which already reports its failure.
+        failed, _ = self.run_code('raise SystemExit(1)')
+        self.assertNotIn('no session id', failed.stderr)
 
     def age_job(self, job, days, **patch):
         stamp = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()

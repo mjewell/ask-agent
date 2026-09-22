@@ -51,7 +51,7 @@ pass *both* a prompt argument and stdin, Codex appends stdin as a `<stdin>` bloc
 
 ```sh
 sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
-python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md --parent JOB \
+python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md \
   -- codex exec resume "$sid" --json -c sandbox_mode="read-only" -
 ```
 
@@ -71,16 +71,13 @@ session's settings, and the recorded command should show what the continuation a
 
 ## Reading the result
 
-Simplest option: add `-o /tmp/last-message.txt` to the command and read that file afterwards. Codex writes
-the final agent message there directly, with no parsing.
+`ask-agent answer JOB` reads this format. The rest is for reading the log yourself.
 
-Otherwise, the log is one JSON object per line. The final assistant message:
+A failed turn ends in `turn.failed`, and `item.updated` carries partial text that a later `item.completed`
+supersedes — so the last `agent_message` in the log is not necessarily an answer. `-o /tmp/last-message.txt`
+writes the final agent message to a file with no parsing, but Codex writes it either way.
 
-```sh
-jq -rs 'map(select(.item.type == "agent_message")) | last | .item.text' "$dir/stdout.log"
-```
-
-Everything the agent did, in order:
+The log is one JSON object per line. Everything the agent did, in order:
 
 ```sh
 jq -r 'select(.item.type) | "\(.item.type): \(.item.text // .item.command // "")"' "$dir/stdout.log"

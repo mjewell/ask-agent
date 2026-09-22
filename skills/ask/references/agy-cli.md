@@ -88,7 +88,7 @@ if the point is an independent second opinion, that comes from a different lab, 
 
 ```sh
 sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
-python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --parent JOB \
+python3 <skill-root>/scripts/ask-agent.py run --cwd /repo \
   -- agy --output-format stream-json --model gemini-3.8-flash-low --mode plan \
      --conversation "$sid" --print 'the follow-up prompt'
 ```
@@ -105,17 +105,15 @@ id up front, so recovery is the only route to one.
 
 ## Reading the result
 
-agy emits a single `result` event carrying the complete final response, so no aggregation is needed:
+`ask-agent answer JOB` reads this format. The rest is for reading the log yourself.
 
-```sh
-jq -r 'select(.event == "result") | .result.response' "$dir/stdout.log"
-```
+agy emits a single `result` event carrying the complete final response, so no aggregation is needed. A
+failed turn emits that same event with `"status": "ERROR"` and an `error` field, so a non-empty `response`
+is not proof of an answer.
 
-That event also carries status, turn count, duration, and token usage:
+The log is one JSON object per line. The `result` event also carries status, turn count, duration, and
+token usage:
 
 ```sh
 jq -r 'select(.event == "result") | .result | {status, num_turns, duration_seconds, usage}' "$dir/stdout.log"
 ```
-
-A failed turn still emits `result` with `"status": "ERROR"` and an `error` field, so check `status` rather
-than assuming a non-empty `response`.

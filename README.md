@@ -51,9 +51,9 @@ in this repository.
 
 | Command | Purpose |
 | --- | --- |
-| `run [--cwd DIR] [--timeout SECONDS] [--prompt-file PATH] [--parent JOB] -- CMD …` | Run a command and print its job ID. Default timeout: 1,800 seconds. |
+| `run [--cwd DIR] [--timeout SECONDS] [--prompt-file PATH] -- CMD …` | Run a command and print its job ID. Default timeout: 1,800 seconds. |
 | `answer JOB` | Print the final answer from a successful job. |
-| `status [JOB]` | Show status, exit code, and session ID. Omit JOB to list all jobs. |
+| `status [JOB]` | Show status, exit code, and session ID. Omit JOB to list all jobs, oldest first. |
 | `path JOB` | Print the directory containing the job record and logs. |
 | `session JOB` | Print the provider's session ID, including during a run. |
 | `wait JOB [--timeout SECONDS]` | Block until the job stops running. Default window: the job's own timeout plus a minute. |
@@ -88,6 +88,9 @@ Jobs live in `~/.ask-agent/jobs/`, one store for every project, so a job started
 one directory stays listable and resumable from anywhere. Each record keeps the `cwd`
 it ran in. `ASK_AGENT_JOB` marks a running process so `stop` can verify its identity.
 
+Jobs continuing one conversation share a `session_id`, which with `created_at` is what
+orders a chain of follow-ups; there is no separate link between them.
+
 Set `ASK_AGENT_HOME` for a separate store. It must be an absolute path: a relative one
 would put the store wherever a command happened to run from, hiding every job started
 elsewhere, so it is refused.
@@ -109,8 +112,7 @@ the record disappeared.
 Pruning discards the job record, not the provider's own session — that lives with the
 provider and survives. What is lost is the session ID pointing at it, so a pruned
 conversation is no longer resumable through Ask Agent. The listing prints each session ID
-before it goes, and a job kept past a pruned parent keeps a `parent_job` that no longer
-resolves.
+before it goes.
 
 Logs and answers are untrusted provider output and can contain secrets. The store
 grows until you delete jobs from it. Ask Agent provides no sandbox; permissions belong
@@ -124,6 +126,10 @@ Cover invocation, prompt input, permissions, resuming, and reading the result.
 Any command can run. Session discovery looks for a root-level `session_id`, `thread_id`,
 or `conversation_id` in JSON lines. To support `answer` for a new output format, add a
 reader and a fixture test; raw logs are always available.
+
+The reader belongs here rather than in the provider's reference because it decides
+whether a job has an answer at all, not only where the text sits. Each provider marks a
+failed turn differently, and a failed job has none to report whatever its log contains.
 
 ## Tests
 
