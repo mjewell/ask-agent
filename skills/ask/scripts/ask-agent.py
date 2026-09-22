@@ -24,8 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 def store_root():
-    """The job store. A relative ASK_AGENT_HOME would place it wherever a command happened
-    to be run from, silently hiding jobs from every later command in another directory."""
+    """The job store. A relative ASK_AGENT_HOME would put it wherever a command ran from,
+    silently hiding every job started in another directory."""
     raw = os.environ.get("ASK_AGENT_HOME")
     if raw is None: return Path("~/.ask-agent").expanduser()
     path = Path(raw).expanduser()
@@ -36,8 +36,8 @@ ROOT = store_root()
 JOB_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 SESSION_KEYS = ("session_id", "thread_id", "conversation_id")
 TERMINAL = ("succeeded", "failed", "timed_out", "cancelled", "abandoned")
-# 124 is what timeout(1) reports, and 130 is a SIGINT exit; a caller reading only the exit
-# code of a backgrounded run can tell a provider failure from a deadline it set itself.
+# 124 is what timeout(1) reports, and 130 is a SIGINT exit, so a caller reading only the
+# exit code of a backgrounded run can tell a provider failure from its own timeout.
 EXIT_CODES = {"succeeded": 0, "timed_out": 124, "cancelled": 130}
 
 def now(): return datetime.now(timezone.utc).isoformat()
@@ -52,8 +52,8 @@ def exit_code(status): return EXIT_CODES.get(status, 1)
 def meta_path(job): return job_dir(job) / "job.json"
 
 def job_data(job):
-    """A record as a dict. Anything that is not one is damaged, and every caller either
-    reports it as corrupt or exits saying so, rather than reaching .get() on it."""
+    """A record as a dict. Anything else is damaged and refused here, so no caller reaches
+    .get() on it; they report it as corrupt or exit saying so."""
     path = meta_path(job)
     if not path.is_file(): raise SystemExit(f"unknown job {job}")
     try: data = json.loads(path.read_text(encoding="utf-8"))
@@ -254,7 +254,7 @@ def execute(job):
 def effective_session(job, data):
     """job.json only gains session_id at completion, so a running job needs the log scanned.
     A finished job's recorded value is authoritative, including when it is null, so listing
-    a large store does not reread every log looking for an id that was never there."""
+    a large store does not reread every log."""
     if data.get("session_id") or data.get("finished_at"): return data.get("session_id")
     return find_session(job)
 
@@ -352,8 +352,8 @@ def cmd_prune(args):
         age = job_age_days(job, data)
         if age < args.older_than: continue
         matched += 1
-        # The status is reported, not enforced: the listing is what lets you see a job you
-        # would rather keep. Nothing is exempt, so the retention window is the real guard.
+        # The status is reported, not enforced: the listing is how you spot a job worth
+        # keeping. Nothing is exempt, so the retention window is the guard.
         if args.delete: remove_job(job)
         print(json.dumps({"job": job, "status": effective_status(job, data) if data else "corrupt",
                           "age_days": round(age, 2), "session_id": data.get("session_id"),
@@ -367,8 +367,8 @@ def cmd_wait(args):
     job = check_job(args.job)
     data = job_data(job)
     if args.timeout is not None and args.timeout <= 0: raise SystemExit("--timeout must be positive")
-    # Default to the job's own deadline plus a minute, which covers the grace period the
-    # runner allows a timed-out provider and the final write of the record.
+    # The job's own deadline plus a minute, covering the kill grace period and the
+    # final write of the record.
     limit = args.timeout if args.timeout is not None else (data.get("timeout_seconds") or 1800) + 60
     deadline = time.monotonic() + limit
     while True:

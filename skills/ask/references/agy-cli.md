@@ -77,7 +77,7 @@ always pass a mode under Ask Agent.
 
 ## Models and effort
 
-`agy models` lists what the account can actually use, live — prefer it over any table here. Note that most
+`agy models` lists what the account can actually use, live — prefer it over any table here. Most
 model ids already encode an effort tier (`gemini-3.8-flash-high`, `-medium`, `-low`) *and* `--effort` exists
 separately, so pick the tier in the model id and leave `--effort` alone unless you have a reason.
 

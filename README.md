@@ -69,8 +69,8 @@ caller. Timeout, stop, and normal completion clean up the provider's process gro
 including children still in that group. Detached processes are outside that scope.
 
 `wait` is for that backgrounded case: it polls once a second and exits with the job's
-own outcome, so nothing has to hand-roll a sleep loop. It only observes — giving up on
-a wait leaves the job running.
+own outcome, so nothing has to hand-roll a sleep loop. Giving up on a wait leaves the
+job running.
 
 Status is `queued`, `running`, `succeeded`, `failed`, `timed_out`, `cancelled`,
 `abandoned` (the process disappeared), `unknown` (its identity could not be checked),
@@ -92,8 +92,8 @@ Jobs continuing one conversation share a `session_id`, which with `created_at` i
 orders a chain of follow-ups; there is no separate link between them.
 
 Set `ASK_AGENT_HOME` for a separate store. It must be an absolute path: a relative one
-would put the store wherever a command happened to run from, hiding every job started
-elsewhere, so it is refused.
+would put the store wherever a command ran from, hiding every job started elsewhere,
+so it is refused.
 
 Each job contains `job.json`, `stdout.log`, `stderr.log`, and `prompt.txt` when a prompt
 file was supplied. Artifacts are private (`0600` files inside a `0700` job directory)
