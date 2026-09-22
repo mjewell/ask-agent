@@ -9,6 +9,7 @@ in the skill, not here.
 from __future__ import annotations
 
 import argparse
+import errno
 import fcntl
 import json
 import os
@@ -39,6 +40,11 @@ TERMINAL = ("succeeded", "failed", "timed_out", "cancelled", "process_gone")
 # 124 is what timeout(1) reports, and 130 is a SIGINT exit, so a caller reading only the
 # exit code of a backgrounded run can tell a provider failure from its own timeout.
 EXIT_CODES = {"succeeded": 0, "timed_out": 124, "cancelled": 130}
+# What remains after a job marks itself finishing is its own cleanup: a kill grace period
+# of 5s, a reap capped at 10s, a scan of the log for a session id, and one write. Past
+# this, nothing is coming. It has to stay well under a `wait` window, or a short job's
+# wait gives up before the mark it is waiting on can resolve.
+FINISHING_GRACE = 60
 
 def now(): return datetime.now(timezone.utc).isoformat()
 def jobs_root(): return (ROOT / "jobs").resolve()
@@ -62,14 +68,21 @@ def job_data(job):
     return data
 
 @contextmanager
-def state_lock():
-    """Serialize job metadata changes."""
+def state_lock(blocking=True):
+    """Serialize job metadata changes. Yields whether the lock was taken, which is only
+    ever False for a caller that asked not to wait for it."""
     private_dir(ROOT)
     lock = ROOT / ".state.lock"
     with lock.open("a+") as handle:
         os.chmod(lock, 0o600)
-        fcntl.flock(handle, fcntl.LOCK_EX)
-        try: yield
+        try: fcntl.flock(handle, fcntl.LOCK_EX if blocking else fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            # Only "someone else holds it" is an answer. Anything else means the lock does
+            # not work here, and proceeding unserialized would be worse than failing.
+            if blocking or exc.errno not in (errno.EACCES, errno.EAGAIN): raise
+            yield False
+            return
+        try: yield True
         finally: fcntl.flock(handle, fcntl.LOCK_UN)
 
 def write_json(path, value):
@@ -193,10 +206,18 @@ def cmd_run(args):
     return execute(job)
 
 def mark_finishing(job):
-    """Say so before cleaning up, so the stretch between the child ending and the outcome
-    being written is a state of its own. Without it the record still says running while
-    no process backs it, which is what a runner that died looks like."""
-    try: update(job, status="finishing")
+    """Mark cleanup as its own state before recording the result. Without it, a record
+    still saying running with no process behind it is what a dead runner looks like.
+
+    One store-wide lock serializes every write, and a job being launched holds it across
+    its provider's exec, so waiting here would delay the mark past the point of being
+    useful. The mark is an optimisation, so it is skipped rather than queued for."""
+    try:
+        with state_lock(blocking=False) as held:
+            if not held: return
+            data = job_data(job)
+            data.update(status="finishing", finishing_at=now())
+            write_json(meta_path(job), data)
     except (SystemExit, OSError, ValueError): pass   # a vanished record is reported below
 
 def execute(job):
@@ -210,10 +231,12 @@ def execute(job):
             for signum in (signal.SIGINT, signal.SIGTERM):
                 previous_handlers[signum] = signal.signal(signum, _raise_interrupted)
             with private_file(job_dir(job) / "stdout.log") as out, private_file(job_dir(job) / "stderr.log") as err:
+                # Outside the lock: one lock serializes the whole store, and holding it
+                # across a provider's exec stalls every other job's writes for that long.
+                proc = subprocess.Popen(data["argv"], cwd=data["cwd"], stdin=stdin_source or subprocess.DEVNULL,
+                                        stdout=out, stderr=err, start_new_session=True,
+                                        env={**os.environ, "ASK_AGENT_JOB": job})
                 with state_lock():
-                    proc = subprocess.Popen(data["argv"], cwd=data["cwd"], stdin=stdin_source or subprocess.DEVNULL,
-                                            stdout=out, stderr=err, start_new_session=True,
-                                            env={**os.environ, "ASK_AGENT_JOB": job})
                     data.update(status="running", started_at=now(), pid=proc.pid, process_group=proc.pid)
                     write_json(meta_path(job), data)
                 rc = proc.wait(timeout=data["timeout_seconds"])
@@ -267,9 +290,13 @@ def effective_session(job, data):
     return find_session(job)
 
 def effective_status(job, data):
-    """A record that says running with no process behind it is reported as `process_gone`:
-    what was observed, not a verdict on what became of it. `finishing` is the runner's own
-    mark that it is past the child and writing the outcome, so it is left alone."""
+    """Report a missing process for a running job as `process_gone`: what was observed,
+    not a verdict on what became of it. A job that is cleaning up is expected to have no
+    process, so it is left alone until the mark has outlived any cleanup that could
+    explain it."""
+    if data.get("status") == "finishing":
+        if record_time(job, data, "finishing_at") < time.time() - FINISHING_GRACE:
+            return "process_gone"
     if data.get("status") == "running":
         match = process_matches_job(data.get("process_group"), job)
         if match is None: return "unknown"
@@ -388,9 +415,8 @@ def cmd_wait(args):
     previous = None
     while True:
         status = effective_status(job, job_data(job))
-        # `process_gone` is inferred, and a job marks itself `finishing` before the
-        # window where it could be mistaken for one. The gap left is the moment before
-        # that mark lands, so one sighting is not a conclusion; a second is.
+        # The child can exit just before the runner marks the job finishing.
+        # Recheck a missing process once before returning that status.
         if status in TERMINAL and (status != "process_gone" or previous == "process_gone"):
             print(status)
             return exit_code(status)
@@ -405,6 +431,10 @@ def cmd_stop(args):
     job = check_job(args.job)
     with state_lock():   # one critical section: a natural completion cannot land mid-check
         data = job_data(job)
+        if data.get("status") == "finishing" and effective_status(job, data) == "process_gone":
+            data.update(status="process_gone", finished_at=now(), stop_reason="process_gone")
+            write_json(meta_path(job), data)
+            raise SystemExit("job stopped recording an outcome; recorded as process_gone")
         if data.get("status") != "running": raise SystemExit(f"job is not running (status: {data.get('status')})")
         pid = data.get("process_group")
         match = process_matches_job(pid, job)

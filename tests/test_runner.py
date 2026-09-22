@@ -378,8 +378,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(proc.wait(timeout=15), 0)
 
     def test_job_marks_itself_finishing_before_cleanup(self):
-        """The stretch between the child ending and the outcome being written is where a
-        healthy job was previously indistinguishable from one whose runner had died."""
+        """Cleanup has its own state before the final result is written."""
         seen = []
         real = ask_agent.mark_finishing
         def record(job):
@@ -391,17 +390,44 @@ class RunnerTests(unittest.TestCase):
                 prompt_file=None))
         self.assertEqual(seen, ['finishing'])
 
+    def test_a_finishing_mark_that_outlives_its_runner_reads_as_gone(self):
+        """A runner killed during its own cleanup leaves the mark behind. Left alone it
+        would sit there forever, which is the one case the mark made worse."""
+        _, job = self.run_code('pass')
+        fresh = {**self.metadata(job), 'status': 'finishing',
+                 'finishing_at': datetime.now(timezone.utc).isoformat()}
+        self.assertEqual(ask_agent.effective_status(job, fresh), 'finishing')
+        stale = {**fresh, 'finishing_at': (datetime.now(timezone.utc)
+                                           - timedelta(seconds=ask_agent.FINISHING_GRACE + 60)).isoformat()}
+        self.assertEqual(ask_agent.effective_status(job, stale), 'process_gone')
+
+    def test_finishing_mark_is_skipped_rather_than_queued_for(self):
+        """One store-wide lock serializes writes, and a job being launched holds it across
+        its provider's exec. Waiting for it would delay the mark past being useful."""
+        _, job = self.run_code('pass')
+        before = self.metadata(job)['status']
+        holder = subprocess.Popen([sys.executable, '-c',
+                                   'import fcntl,sys,time; h=open(sys.argv[1],"a+"); '
+                                   'fcntl.flock(h,fcntl.LOCK_EX); print("held",flush=True); time.sleep(30)',
+                                   str(self.store / '.state.lock')], stdout=subprocess.PIPE, text=True)
+        self.addCleanup(holder.wait)
+        self.addCleanup(holder.terminate)
+        self.addCleanup(holder.stdout.close)
+        self.assertEqual(holder.stdout.readline().strip(), 'held')
+        start = time.monotonic()
+        ask_agent.mark_finishing(job)
+        self.assertLess(time.monotonic() - start, 5, 'mark_finishing waited for the lock')
+        self.assertEqual(self.metadata(job)['status'], before, 'record written while locked')
+
     def test_wait_does_not_call_a_finishing_job_gone(self):
-        """A job whose child has exited but whose outcome is not yet written looks
-        gone, because the record still says running and no process backs it. Acting on
-        that first sighting reports a successful run as process_gone."""
+        """Recheck a missing process so a brief transition is not reported as final."""
         _, job = self.run_code('pass')
         args = types.SimpleNamespace(job=job, timeout=None)
         with patch.object(ask_agent, 'effective_status', side_effect=['process_gone', 'succeeded']), \
              patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(ask_agent.cmd_wait(args), 0)
         self.assertEqual(out.getvalue().strip(), 'succeeded')
-        # A reading that persists is a real abandonment.
+        # A second missing-process reading is returned as process_gone.
         with patch.object(ask_agent, 'effective_status', side_effect=['process_gone', 'process_gone']), \
              patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(ask_agent.cmd_wait(args), 1)
