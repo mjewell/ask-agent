@@ -182,7 +182,7 @@ class RunnerTests(unittest.TestCase):
                 pid = int((self.store / 'jobs' / job / 'stdout.log').read_text())
                 self.assert_dead(pid)
                 self.assertEqual(self.metadata(job)['status'], expected, result.stderr)
-                self.assertEqual(result.returncode, 0 if delay == 0 else 1)
+                self.assertEqual(result.returncode, 0 if delay == 0 else 124)
 
     def start_live_job(self, code=None, stderr=None):
         output = self.root / 'live-job.txt'
@@ -210,7 +210,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(self.cli('session', job).stdout.strip(), 'thr_live')
         self.assertNotEqual(self.cli('answer', job).returncode, 0)
         proc.terminate()
-        proc.wait(timeout=15)
+        self.assertEqual(proc.wait(timeout=15), 130)
         self.assert_dead(child_pid)
         self.assertEqual(self.metadata(job)['status'], 'cancelled')
 
@@ -306,6 +306,97 @@ class RunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, 'abandoned'): ask_agent.cmd_stop(args)
             self.assertEqual(self.metadata(job)['status'], 'abandoned')
             kill.assert_not_called()
+
+    def test_relative_store_is_refused(self):
+        """A relative store would follow the caller's directory around, hiding jobs."""
+        with patch.dict(os.environ, {'HOME': str(self.root), 'ASK_AGENT_HOME': 'relative/store'}):
+            with self.assertRaisesRegex(SystemExit, 'must be an absolute path'):
+                spec.loader.exec_module(importlib.util.module_from_spec(spec))
+
+    def test_status_separates_a_missing_record_from_a_damaged_one(self):
+        _, job = self.run_code('pass')
+        (self.store / 'jobs' / job / 'job.json').write_text('{broken')
+        damaged = self.cli('status', job)
+        self.assertEqual(json.loads(damaged.stdout)['status'], 'corrupt')
+        self.assertNotEqual(damaged.returncode, 0)
+        gone = self.cli('status', '20260101-000000-aaaaaa')
+        self.assertEqual(json.loads(gone.stdout)['status'], 'missing')
+        self.assertNotEqual(gone.returncode, 0)
+        # A listing still succeeds with an unreadable record in it.
+        self.assertEqual(self.cli('status').returncode, 0)
+        self.assertNotEqual(self.cli('path', '20260101-000000-aaaaaa').returncode, 0)
+
+    def test_a_record_of_the_wrong_shape_is_corrupt_everywhere(self):
+        """Valid JSON that is not an object is a damaged record. It must not take down a
+        listing of every other job, and must never surface as a traceback."""
+        _, good = self.run_code('pass')
+        _, bad = self.run_code('pass')
+        (self.store / 'jobs' / bad / 'job.json').write_text('[]')
+        named = self.cli('status', bad)
+        self.assertEqual(json.loads(named.stdout)['status'], 'corrupt')
+        self.assertNotEqual(named.returncode, 0)
+        listed = self.cli('status')
+        records = {e['job']: e for e in map(json.loads, listed.stdout.splitlines())}
+        self.assertEqual(records[bad]['status'], 'corrupt')
+        self.assertEqual(records[good]['status'], 'succeeded')
+        self.assertEqual(listed.returncode, 0)
+        self.assertEqual(listed.stderr, '')
+        for args in (('answer', bad), ('session', bad), ('wait', bad), ('stop', bad),
+                     ('run', '--parent', bad, '--', 'true')):
+            with self.subTest(args=args):
+                result = self.cli(*args)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn('Traceback', result.stderr)
+                self.assertIn('not an object', result.stderr)
+        # One damaged record must not make the rest of the store unprunable.
+        os.utime(self.store / 'jobs' / bad, (time.time() - 40 * 86400,) * 2)
+        matched, _ = self.prune()
+        self.assertEqual(matched[bad]['status'], 'corrupt')
+        self.assertNotIn(good, matched)
+
+    def test_status_reports_lineage(self):
+        _, parent = self.run_code('pass')
+        _, child = self.run_code('pass', '--parent', parent)
+        records = {e['job']: e for e in map(json.loads, self.cli('status').stdout.splitlines())}
+        self.assertEqual(records[child]['parent_job'], parent)
+        self.assertIsNone(records[parent]['parent_job'])
+
+    def test_wait_reports_each_outcome(self):
+        for code, status, expected in [('pass', 'succeeded', 0), ('raise SystemExit(3)', 'failed', 1)]:
+            with self.subTest(status=status):
+                _, job = self.run_code(code)
+                result = self.cli('wait', job)
+                self.assertEqual(result.stdout.strip(), status)
+                self.assertEqual(result.returncode, expected, result.stderr)
+
+    def test_wait_blocks_until_a_live_job_finishes(self):
+        brief = ('import json,os,time; '
+                 'print(json.dumps({"child_pid":os.getpid()}),flush=True); time.sleep(2)')
+        proc, job, _ = self.start_live_job(brief)
+        result = self.cli('wait', job)
+        self.assertEqual(result.stdout.strip(), 'succeeded', result.stderr)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(proc.wait(timeout=15), 0)
+
+    def test_wait_gives_up_without_stopping_the_job(self):
+        proc, job, child_pid = self.start_live_job()
+        result = self.cli('wait', job, '--timeout', '1')
+        self.assertEqual(result.returncode, 125)
+        self.assertIn(f'gave up waiting for {job} after 1s', result.stderr)
+        self.assertIn('was not stopped', result.stderr)
+        self.assertEqual(self.metadata(job)['status'], 'running')
+        self.assertNotEqual(self.cli('wait', job, '--timeout', '0').returncode, 0)
+        proc.terminate()
+        proc.wait(timeout=15)
+        self.assert_dead(child_pid)
+
+    def test_wait_default_window_follows_the_job(self):
+        _, job = self.run_code('pass', '--timeout', '7200')
+        with patch.object(ask_agent, 'effective_status', return_value='running'), \
+             patch.object(ask_agent.time, 'monotonic', side_effect=[0.0, 7259.0, 7261.0]), \
+             patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(ask_agent.cmd_wait(types.SimpleNamespace(job=job, timeout=None)), 125)
+        self.assertIn('after 7260s', err.getvalue())
 
     def test_default_store_is_the_home_directory(self):
         def load(environ):

@@ -23,10 +23,23 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(os.environ.get("ASK_AGENT_HOME", "~/.ask-agent")).expanduser()
+def store_root():
+    """The job store. A relative ASK_AGENT_HOME would place it wherever a command happened
+    to be run from, silently hiding jobs from every later command in another directory."""
+    raw = os.environ.get("ASK_AGENT_HOME")
+    if raw is None: return Path("~/.ask-agent").expanduser()
+    path = Path(raw).expanduser()
+    if not path.is_absolute(): raise SystemExit(f"ASK_AGENT_HOME must be an absolute path: {raw}")
+    return path
+
+ROOT = store_root()
 JOB_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 SESSION_KEYS = ("session_id", "thread_id", "conversation_id")
 STRUCTURED_HINTS = ("--json", "--output-format", "--experimental-json")
+TERMINAL = ("succeeded", "failed", "timed_out", "cancelled", "abandoned")
+# 124 is what timeout(1) reports, and 130 is a SIGINT exit; a caller reading only the exit
+# code of a backgrounded run can tell a provider failure from a deadline it set itself.
+EXIT_CODES = {"succeeded": 0, "timed_out": 124, "cancelled": 130}
 
 def now(): return datetime.now(timezone.utc).isoformat()
 def jobs_root(): return (ROOT / "jobs").resolve()
@@ -36,12 +49,18 @@ def check_job(job):
     return job
 
 def job_dir(job): return jobs_root() / check_job(job)
+def exit_code(status): return EXIT_CODES.get(status, 1)
 def meta_path(job): return job_dir(job) / "job.json"
 
 def job_data(job):
+    """A record as a dict. Anything that is not one is damaged, and every caller either
+    reports it as corrupt or exits saying so, rather than reaching .get() on it."""
     path = meta_path(job)
     if not path.is_file(): raise SystemExit(f"unknown job {job}")
-    return json.loads(path.read_text(encoding="utf-8"))
+    try: data = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as exc: raise SystemExit(f"job record is not readable JSON: {exc}")
+    if not isinstance(data, dict): raise SystemExit(f"job record is not an object: {type(data).__name__}")
+    return data
 
 @contextmanager
 def state_lock():
@@ -229,7 +248,7 @@ def execute(job):
             data.update(status=status, exit_code=rc, finished_at=now(), stop_reason=reason, session_id=session_id)
             write_json(meta_path(job), data)
         if error is not None: print(f"ask-agent: {error}", file=sys.stderr)
-        return 0 if status == "succeeded" else 1
+        return exit_code(status)
     finally:
         for signum, handler in previous_handlers.items(): signal.signal(signum, handler)
 
@@ -252,14 +271,23 @@ def known_jobs():
     return sorted(p.name for p in jobs_root().glob("*") if p.is_dir() and JOB_RE.fullmatch(p.name))
 
 def cmd_status(args):
+    """A listing succeeds even when one record in it is unreadable; a single named job that
+    cannot be read is the whole answer, so it fails instead."""
     jobs = [check_job(args.job)] if args.job else known_jobs()
+    unreadable = False
     for job in jobs:
+        if not meta_path(job).is_file():
+            print(json.dumps({"job": job, "status": "missing"}, sort_keys=True))
+            unreadable = True; continue
         try: data = job_data(job)
         except (SystemExit, OSError, ValueError) as exc:
-            print(json.dumps({"job": job, "status": "corrupt", "error": str(exc)})); continue
-        fields = {key: data.get(key) for key in ("job", "exit_code", "cwd", "created_at", "finished_at")}
+            print(json.dumps({"job": job, "status": "corrupt", "error": str(exc)}))
+            unreadable = True; continue
+        fields = {key: data.get(key) for key in ("job", "exit_code", "cwd", "created_at",
+                                                 "finished_at", "parent_job")}
         print(json.dumps({**fields, "status": effective_status(job, data),
                           "session_id": effective_session(job, data)}, sort_keys=True))
+    return 1 if args.job and unreadable else 0
 
 def cmd_session(args):
     job = check_job(args.job)
@@ -269,7 +297,10 @@ def cmd_session(args):
     print(found)
 
 def cmd_path(args):
-    print(job_dir(args.job))
+    folder = job_dir(args.job)
+    # A damaged job.json still has logs worth reading, so the directory is what must exist.
+    if not folder.is_dir(): raise SystemExit(f"unknown job {args.job}")
+    print(folder)
 
 def cmd_answer(args):
     job = check_job(args.job)
@@ -322,6 +353,26 @@ def cmd_prune(args):
         print(f"ask-agent: {matched} job(s) match; re-run with --delete to remove them", file=sys.stderr)
     return 0
 
+def cmd_wait(args):
+    """Block until a job stops running, then exit with that job's own outcome code."""
+    job = check_job(args.job)
+    data = job_data(job)
+    if args.timeout is not None and args.timeout <= 0: raise SystemExit("--timeout must be positive")
+    # Default to the job's own deadline plus a minute, which covers the grace period the
+    # runner allows a timed-out provider and the final write of the record.
+    limit = args.timeout if args.timeout is not None else (data.get("timeout_seconds") or 1800) + 60
+    deadline = time.monotonic() + limit
+    while True:
+        status = effective_status(job, job_data(job))
+        if status in TERMINAL:
+            print(status)
+            return exit_code(status)
+        if time.monotonic() >= deadline:
+            print(f"ask-agent: gave up waiting for {job} after {limit:g}s; "
+                  f"it is {status} and was not stopped", file=sys.stderr)
+            return 125
+        time.sleep(1)
+
 def cmd_stop(args):
     job = check_job(args.job)
     with state_lock():   # one critical section: a natural completion cannot land mid-check
@@ -361,6 +412,10 @@ def main():
     path.add_argument("job")
     session = sub.add_parser("session", help="print the job's native session id, even while it runs")
     session.add_argument("job")
+    wait = sub.add_parser("wait", help="block until a job stops running, exiting with its outcome")
+    wait.add_argument("job")
+    wait.add_argument("--timeout", type=float, metavar="SECONDS",
+                      help="how long to wait; defaults to the job's own timeout plus a minute")
     stop = sub.add_parser("stop", help="terminate a running job's process group"); stop.add_argument("job")
     prune = sub.add_parser("prune", help="list, and with --delete remove, finished jobs past a retention window")
     prune.add_argument("--older-than", type=float, default=30, metavar="DAYS",
@@ -369,6 +424,7 @@ def main():
     args = parser.parse_args(mine)
     args.argv = provider_argv
     return {"run": cmd_run, "status": cmd_status, "answer": cmd_answer, "path": cmd_path,
-            "session": cmd_session, "stop": cmd_stop, "prune": cmd_prune}[args.action](args)
+            "session": cmd_session, "wait": cmd_wait, "stop": cmd_stop,
+            "prune": cmd_prune}[args.action](args)
 
 if __name__ == "__main__": raise SystemExit(main())

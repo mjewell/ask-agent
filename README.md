@@ -22,8 +22,7 @@ Choose your agent in the installer, then ask naturally:
 
 > /ask codex to implement this feature
 
-Standalone skill installs normally expose `/ask`. Plugin hosts may namespace commands;
-use the invocation name shown by the host after installation.
+Installed this way, the skill is invoked as `/ask`.
 
 Provider shortcuts are optional. Install one together with its required main skill:
 
@@ -57,6 +56,7 @@ in this repository.
 | `status [JOB]` | Show status, exit code, and session ID. Omit JOB to list all jobs. |
 | `path JOB` | Print the directory containing the job record and logs. |
 | `session JOB` | Print the provider's session ID, including during a run. |
+| `wait JOB [--timeout SECONDS]` | Block until the job stops running. Default window: the job's own timeout plus a minute. |
 | `stop JOB` | Stop a running job's process group after verifying its identity. |
 | `prune [--older-than DAYS] [--delete]` | List jobs past the retention window; remove them with `--delete`. Default window: 30 days. |
 
@@ -68,16 +68,29 @@ how to pass its prompt.
 caller. Timeout, stop, and normal completion clean up the provider's process group,
 including children still in that group. Detached processes are outside that scope.
 
+`wait` is for that backgrounded case: it polls once a second and exits with the job's
+own outcome, so nothing has to hand-roll a sleep loop. It only observes — giving up on
+a wait leaves the job running.
+
 Status is `queued`, `running`, `succeeded`, `failed`, `timed_out`, `cancelled`,
 `abandoned` (the process disappeared), `unknown` (its identity could not be checked),
-or `corrupt`. Success means the command exited zero; it does not validate the work.
+`missing` (no such record), or `corrupt` (a record too damaged to read). Success means
+the command exited zero; it does not validate the work.
+
+`run` and `wait` report the outcome in their exit code: `0` succeeded, `124` timed out,
+`130` cancelled, `1` anything else. `wait` adds `125` for giving up while the job was
+still running, which says nothing about the job itself. `status JOB` exits non-zero when
+that one job is missing or corrupt; a listing of every job does not.
 
 ## Job records
 
 Jobs live in `~/.ask-agent/jobs/`, one store for every project, so a job started in
 one directory stays listable and resumable from anywhere. Each record keeps the `cwd`
-it ran in. Set `ASK_AGENT_HOME` to an absolute path for a separate store.
-`ASK_AGENT_JOB` marks a running process so `stop` can verify its identity.
+it ran in. `ASK_AGENT_JOB` marks a running process so `stop` can verify its identity.
+
+Set `ASK_AGENT_HOME` for a separate store. It must be an absolute path: a relative one
+would put the store wherever a command happened to run from, hiding every job started
+elsewhere, so it is refused.
 
 Each job contains `job.json`, `stdout.log`, `stderr.log`, and `prompt.txt` when a prompt
 file was supplied. Artifacts are private (`0600` files inside a `0700` job directory)
@@ -117,3 +130,7 @@ reader and a fixture test; raw logs are always available.
 ```sh
 python3 tests/test_runner.py
 ```
+
+## License
+
+[MIT](LICENSE).

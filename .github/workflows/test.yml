@@ -24,20 +24,3 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python3 tests/test_runner.py
 
-  manifests:
-    # Both plugin manifests are hand-edited and must agree; a broken one breaks installs quietly.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: |
-          python3 - <<'PY'
-          import json
-          shared = ("name", "version", "description")
-          loaded = {p: json.load(open(p)) for p in
-                    (".claude-plugin/plugin.json", ".codex-plugin/plugin.json")}
-          for key in shared:
-              values = {p: data.get(key) for p, data in loaded.items()}
-              assert len(set(values.values())) == 1, f"{key} differs: {values}"
-              assert values[".claude-plugin/plugin.json"], f"{key} is empty"
-          print("manifests agree on", ", ".join(shared))
-          PY

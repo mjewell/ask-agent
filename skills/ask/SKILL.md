@@ -56,9 +56,13 @@ Build the command from the chosen provider's reference, using the approved setti
 Pass it unchanged after the runner's `--`, with the task's working directory and timeout.
 
 The runner prints a job ID and blocks until completion. Background it when the work
-should run alongside your current task. Redirect its stdout to a task-specific file
-to capture the job ID; wait for that file to contain an ID, then check `status JOB`
-before reading the answer.
+should run alongside your current task: redirect its stdout to a task-specific file to
+capture the job ID, wait for that file to contain an ID, then block on `wait JOB` when
+you need the result. Do not hand-roll a polling loop; `wait` exits with the job's own
+outcome and leaves the job alone if it gives up.
+
+Exit codes report the outcome: `0` succeeded, `124` timed out, `130` cancelled, `1`
+anything else, and from `wait` alone, `125` for giving up on a job that is still running.
 
 ```sh
 python3 <skill-root>/scripts/ask-agent.py answer JOB
@@ -67,8 +71,9 @@ python3 <skill-root>/scripts/ask-agent.py answer JOB
 Return the useful result to the user, including material disagreements or limitations.
 A successful process exit is not proof that the work is correct. If `answer` cannot
 extract a result or the job failed, use `path JOB` and inspect `stderr.log` and
-`stdout.log`; the provider reference describes its output format. For those examples,
-set `dir` to the job directory:
+`stdout.log`; the provider reference describes its output format, and a timed-out job
+often holds useful partial work there. For those examples, set `dir` to the job
+directory:
 
 ```sh
 dir=$(python3 <skill-root>/scripts/ask-agent.py path JOB)
@@ -82,13 +87,14 @@ dir=$(python3 <skill-root>/scripts/ask-agent.py path JOB)
 | `status [JOB]` | Show job status and session ID; omit JOB to list all jobs. |
 | `path JOB` | Locate `job.json`, `stdout.log`, `stderr.log`, and any saved prompt. |
 | `session JOB` | Get the provider's session ID, including during a run. |
+| `wait JOB [--timeout SECONDS]` | Block until a backgrounded job stops running. |
 | `stop JOB` | Stop the job's process group. |
 | `prune [--older-than DAYS] [--delete]` | List old jobs; `--delete` removes them. |
 
 To continue a conversation, use `session JOB`, build the provider's resume command
 from its reference, and pass `--parent JOB` on the new run. Reapply model, effort, and permission
 settings explicitly. Jobs live under `~/.ask-agent/jobs/`, or `$ASK_AGENT_HOME/jobs/`
-when that is set, so a job remains resumable from any directory.
+when that is set to an absolute path, so a job remains resumable from any directory.
 
 Preserve provider sessions by default. Never pass `--no-session-persistence` (or an
 equivalent setting) unless the user explicitly asks for an ephemeral session; a job
