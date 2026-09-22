@@ -35,7 +35,7 @@ def store_root():
 ROOT = store_root()
 JOB_RE = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 SESSION_KEYS = ("session_id", "thread_id", "conversation_id")
-TERMINAL = ("succeeded", "failed", "timed_out", "cancelled", "abandoned")
+TERMINAL = ("succeeded", "failed", "timed_out", "cancelled", "process_gone")
 # 124 is what timeout(1) reports, and 130 is a SIGINT exit, so a caller reading only the
 # exit code of a backgrounded run can tell a provider failure from its own timeout.
 EXIT_CODES = {"succeeded": 0, "timed_out": 124, "cancelled": 130}
@@ -192,6 +192,13 @@ def cmd_run(args):
     print(job, flush=True)
     return execute(job)
 
+def mark_finishing(job):
+    """Say so before cleaning up, so the stretch between the child ending and the outcome
+    being written is a state of its own. Without it the record still says running while
+    no process backs it, which is what a runner that died looks like."""
+    try: update(job, status="finishing")
+    except (SystemExit, OSError, ValueError): pass   # a vanished record is reported below
+
 def execute(job):
     data = job_data(job)
     prompt_name = data.get("prompt_file")
@@ -220,6 +227,7 @@ def execute(job):
             # Repeated interrupts must not abandon cleanup or the final job record.
             for signum in previous_handlers: signal.signal(signum, signal.SIG_IGN)
             if proc:
+                mark_finishing(job)
                 kill_group(proc.pid, process=proc)
                 try: rc = proc.wait(timeout=10)
                 except subprocess.TimeoutExpired: rc = None
@@ -259,11 +267,13 @@ def effective_session(job, data):
     return find_session(job)
 
 def effective_status(job, data):
-    """A job whose process is gone without recording an outcome is abandoned, not running."""
+    """A record that says running with no process behind it is reported as `process_gone`:
+    what was observed, not a verdict on what became of it. `finishing` is the runner's own
+    mark that it is past the child and writing the outcome, so it is left alone."""
     if data.get("status") == "running":
         match = process_matches_job(data.get("process_group"), job)
         if match is None: return "unknown"
-        if match is False: return "abandoned"
+        if match is False: return "process_gone"
     return data.get("status")
 
 def known_jobs():
@@ -378,10 +388,10 @@ def cmd_wait(args):
     previous = None
     while True:
         status = effective_status(job, job_data(job))
-        # `abandoned` is inferred from a live record whose process is gone, which is also
-        # how a healthy job looks between its child exiting and the runner recording the
-        # outcome. One sighting is not a conclusion; a second, after a fresh read, is.
-        if status in TERMINAL and (status != "abandoned" or previous == "abandoned"):
+        # `process_gone` is inferred, and a job marks itself `finishing` before the
+        # window where it could be mistaken for one. The gap left is the moment before
+        # that mark lands, so one sighting is not a conclusion; a second is.
+        if status in TERMINAL and (status != "process_gone" or previous == "process_gone"):
             print(status)
             return exit_code(status)
         previous = status
@@ -401,9 +411,9 @@ def cmd_stop(args):
         if match is None:
             raise SystemExit("cannot verify the job process; no signal sent and job state unchanged")
         if match is False:
-            data.update(status="abandoned", finished_at=now(), stop_reason="process_gone")
+            data.update(status="process_gone", finished_at=now(), stop_reason="process_gone")
             write_json(meta_path(job), data)
-            raise SystemExit("job process is gone; recorded as abandoned")
+            raise SystemExit("job process is gone; recorded as process_gone")
         data["stop_requested"] = True
         write_json(meta_path(job), data)
     kill_group(pid)

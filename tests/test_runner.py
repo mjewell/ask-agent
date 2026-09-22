@@ -299,7 +299,7 @@ class RunnerTests(unittest.TestCase):
         with patch.object(ask_agent.os, 'kill', side_effect=ProcessLookupError):
             self.assertIs(ask_agent.process_matches_job(123, job), False)
 
-    def test_unknown_and_abandoned_stop(self):
+    def test_unknown_and_vanished_stop(self):
         _, job = self.run_code('pass')
         ask_agent.update(job, status='running', process_group=123)
         args = types.SimpleNamespace(job=job)
@@ -309,9 +309,9 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(self.metadata(job)['status'], 'running')
             kill.assert_not_called()
         with patch.object(ask_agent, 'process_matches_job', return_value=False), patch.object(ask_agent, 'kill_group') as kill:
-            self.assertEqual(ask_agent.effective_status(job, self.metadata(job)), 'abandoned')
-            with self.assertRaisesRegex(SystemExit, 'abandoned'): ask_agent.cmd_stop(args)
-            self.assertEqual(self.metadata(job)['status'], 'abandoned')
+            self.assertEqual(ask_agent.effective_status(job, self.metadata(job)), 'process_gone')
+            with self.assertRaisesRegex(SystemExit, 'process_gone'): ask_agent.cmd_stop(args)
+            self.assertEqual(self.metadata(job)['status'], 'process_gone')
             kill.assert_not_called()
 
     def test_relative_store_is_refused(self):
@@ -377,21 +377,35 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(proc.wait(timeout=15), 0)
 
-    def test_wait_does_not_call_a_finishing_job_abandoned(self):
+    def test_job_marks_itself_finishing_before_cleanup(self):
+        """The stretch between the child ending and the outcome being written is where a
+        healthy job was previously indistinguishable from one whose runner had died."""
+        seen = []
+        real = ask_agent.mark_finishing
+        def record(job):
+            real(job)
+            seen.append(self.metadata(job)['status'])
+        with patch.object(ask_agent, 'mark_finishing', record):
+            ask_agent.cmd_run(types.SimpleNamespace(
+                argv=[sys.executable, '-c', 'pass'], cwd=str(self.root), timeout=30,
+                prompt_file=None))
+        self.assertEqual(seen, ['finishing'])
+
+    def test_wait_does_not_call_a_finishing_job_gone(self):
         """A job whose child has exited but whose outcome is not yet written looks
-        abandoned, because the record still says running and the process is gone. Acting
-        on that first sighting reports a successful run as abandoned."""
+        gone, because the record still says running and no process backs it. Acting on
+        that first sighting reports a successful run as process_gone."""
         _, job = self.run_code('pass')
         args = types.SimpleNamespace(job=job, timeout=None)
-        with patch.object(ask_agent, 'effective_status', side_effect=['abandoned', 'succeeded']), \
+        with patch.object(ask_agent, 'effective_status', side_effect=['process_gone', 'succeeded']), \
              patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(ask_agent.cmd_wait(args), 0)
         self.assertEqual(out.getvalue().strip(), 'succeeded')
         # A reading that persists is a real abandonment.
-        with patch.object(ask_agent, 'effective_status', side_effect=['abandoned', 'abandoned']), \
+        with patch.object(ask_agent, 'effective_status', side_effect=['process_gone', 'process_gone']), \
              patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(ask_agent.cmd_wait(args), 1)
-        self.assertEqual(out.getvalue().strip(), 'abandoned')
+        self.assertEqual(out.getvalue().strip(), 'process_gone')
 
     def test_wait_gives_up_without_stopping_the_job(self):
         proc, job, child_pid = self.start_live_job()

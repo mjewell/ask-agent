@@ -69,10 +69,19 @@ including children still in that group. Detached processes are outside that scop
 Use `wait` for a background job. It checks once a second and returns the job's
 outcome. If `wait` gives up, the job keeps running.
 
-Status is `queued`, `running`, `succeeded`, `failed`, `timed_out`, `cancelled`,
-`abandoned` (the process disappeared), `unknown` (its identity could not be checked),
-`missing` (no such record), or `corrupt` (a record too damaged to read). Success means
-the command exited zero; it does not validate the work.
+Status is `queued`, `running`, `finishing` (the command is done and the outcome is
+being written), `succeeded`, `failed`, `timed_out`, `cancelled`, `process_gone` (the
+record says running but no process backs it), `unknown` (its identity could not be
+checked), `missing` (no such record), or `corrupt` (a record too damaged to read).
+Success means the command exited zero; it does not validate the work.
+
+`process_gone` is the one status nothing wrote down: it is inferred from a running record
+with no process behind it, which is why it is named for what was seen rather than for a
+verdict. A job marks itself `finishing` before the stretch where it would otherwise look
+that way, so what is left is the moment before that mark lands. `status` prints one
+observation and does not confirm it; `wait` is what confirms, concluding only on a reading
+that survives a second look. So read a `process_gone` from `status` twice before acting
+on it.
 
 `run` and `wait` report the outcome in their exit code: `0` succeeded, `124` timed out,
 `130` cancelled, `1` anything else. `wait` adds `125` for giving up while the job was
