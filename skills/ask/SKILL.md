@@ -102,11 +102,10 @@ job, so filtering the listing on that ID recovers the chain, oldest first.
 Jobs live under `~/.ask-agent/jobs/`, or `$ASK_AGENT_HOME/jobs/` when that is set to an
 absolute path, so a job remains resumable from any directory.
 
-`finishing` means the runner is cleaning up and recording the result; it is not an
-answer yet. `process_gone` means the record says running, but the process is gone. It can
-appear briefly between the process exiting and the runner writing `finishing`. If `status`
-shows it, check again before reporting it. `wait` makes that second check automatically,
-though neither check proves the runner died.
+`process_gone` means the record says running, but the process is gone. It does not by
+itself mean the job is over: a runner still recording the outcome reads the same way. If
+`status` shows it, check again before reporting it. `wait` handles that for you, waiting
+until the reading has outlasted any cleanup that could explain it.
 
 Preserve provider sessions by default. Never pass `--no-session-persistence` (or an
 equivalent setting) unless the user explicitly asks for an ephemeral session; a job

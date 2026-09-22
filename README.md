@@ -69,22 +69,16 @@ including children still in that group. Detached processes are outside that scop
 Use `wait` for a background job. It checks once a second and returns the job's
 outcome. If `wait` gives up, the job keeps running.
 
-Status is `queued`, `running`, `finishing` (the runner is cleaning up and recording
-the result), `succeeded`, `failed`, `timed_out`, `cancelled`, `process_gone` (the
-record says running, but the process is gone), `unknown` (the process could not be
-confirmed as this job's), `missing` (no job record), or `corrupt` (an unreadable record).
-Success means the command exited zero; it does not validate the work.
+Status is `queued`, `running`, `succeeded`, `failed`, `timed_out`, `cancelled`,
+`process_gone` (the record says running, but the process is gone), `unknown` (the process
+could not be confirmed as this job's), `missing` (no job record), or `corrupt` (an
+unreadable record). Success means the command exited zero; it does not validate the work.
 
-`process_gone` is inferred rather than saved by the runner. It can appear briefly if
-the command exits just before the runner writes `finishing`, and a job being launched can
-delay that write, so the mark is skipped rather than waited for. `wait` checks again one
-second later before returning `process_gone`; a second reading is not proof the runner
-died, only a reason to stop waiting. If you use `status`, check again before treating it
-as the final result.
-
-A job stays `finishing` only as long as cleanup could explain it. Past that it reads as
-`process_gone`, so a runner killed while recording an outcome does not leave a record
-waiting forever.
+`process_gone` is inferred rather than saved by the runner, and it does not by itself
+mean the job is over: a runner that is cleaning up and recording the outcome reads the
+same way as one that died. `wait` keeps waiting until the reading has outlasted any
+cleanup that could explain it. If you use `status`, which reports a single look, check
+again before treating it as the final result.
 
 `run` and `wait` report the outcome in their exit code: `0` succeeded, `124` timed out,
 `130` cancelled, `1` anything else. `wait` adds `125` for giving up while the job was
