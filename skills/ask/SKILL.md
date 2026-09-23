@@ -47,8 +47,10 @@ an outcome, such as “ask Claude to review my changes,” prepare a focused pro
 the necessary context and constraints. Routine prompt preparation needs no preview
 or extra approval; ask if preparing it would require changing the requested scope.
 
-Follow the provider reference for prompt input. Prefer a prompt file when supported,
-and use safe argument passing rather than interpolating prompt text into shell code.
+Write the prompt to a file and pass it with `--prompt-file`; every job requires one, so
+the prompt is always saved. It goes to the command's stdin, or, for a CLI that takes its
+prompt as an argument, in place of an argument that is exactly `{prompt}`. The provider
+reference says which. Never interpolate prompt text into the command.
 
 ## Run and return the answer
 
@@ -73,26 +75,20 @@ and its reference says how.
 
 Return the useful result to the user, including material disagreements or limitations.
 A successful process exit is not proof that the work is correct. If `answer` cannot
-extract a result or the job failed, use `path JOB` and inspect `stderr.log` and
-`stdout.log`; the provider reference describes its output format, and a timed-out job
-often holds useful partial work there. For those examples, set `dir` to the job
-directory:
-
-```sh
-dir=$(python3 <skill-root>/scripts/ask-agent.py path JOB)
-```
+extract a result or the job failed, inspect `stderr.log` and `stdout.log` in the job's
+directory, which `status JOB` prints as `path`. The provider reference describes its
+output format, and its examples use `$dir` for that directory. A timed-out job often
+holds useful partial work there.
 
 ## Follow up and manage jobs
 
 | Command | Purpose |
 | --- | --- |
 | `answer JOB` | Print the final answer from a successful job. |
-| `status [JOB]` | Show job status and session ID; omit JOB to list all jobs. |
-| `path JOB` | Locate `job.json`, `stdout.log`, `stderr.log`, and any saved prompt. |
+| `status [JOB]` | Show status, session ID, and job directory; omit JOB to list all jobs, oldest first. |
 | `session JOB` | Get the provider's session ID, including during a run. |
 | `wait JOB [--timeout SECONDS]` | Block until a backgrounded job stops running. |
-| `stop JOB` | Stop the job's process group. |
-| `prune [--older-than DAYS] [--delete]` | List old jobs; `--delete` removes them. |
+| `stop JOB` | Stop the job and wait for its outcome to be recorded. |
 
 To continue a conversation, get its ID with `session JOB` and use the resume command
 in the provider reference. Pass the approved model, effort, and permission settings
@@ -102,19 +98,15 @@ job, so filtering the listing on that ID recovers the chain, oldest first.
 Jobs live under `~/.ask-agent/jobs/`, or `$ASK_AGENT_HOME/jobs/` when that is set to an
 absolute path, so a job remains resumable from any directory.
 
-`process_gone` means the record says running, but the process is gone. It does not by
-itself mean the job is over: a runner still recording the outcome reads the same way. If
-`status` shows it, check again before reporting it. `wait` handles that for you, waiting
-until the reading has outlasted any cleanup that could explain it.
+Status is `running`, `succeeded`, `failed`, `timed_out`, `cancelled`, `runner_died`, or,
+in `status` alone, `unreadable` for a damaged record. `runner_died` means the runner
+exited without recording an outcome, so the provider may have been left running.
 
 Preserve provider sessions by default. Never pass `--no-session-persistence` (or an
 equivalent setting) unless the user explicitly asks for an ephemeral session; a job
 that looks disposable now may need to be resumed later.
 
-`prune` deletes job records permanently and exempts nothing, including a job still
-running. Run it without `--delete` first, show the user what matches, and only pass
-`--delete` once they have agreed to lose those records. Do not prune on your own
-initiative; a pruned job cannot be resumed through Ask Agent afterwards.
+Job records are the audit trail. Do not delete them on your own initiative.
 
 ## Boundaries
 
