@@ -1,7 +1,6 @@
 # Model and effort choices
 
-**User-maintained. Verified 2026-09-19 against provider documentation and the local CLI pickers; Opus 5.5 and
-GPT-6 Sol and Luna added 2026-09-23 from provider pricing.**
+**User-maintained. Verified 2026-09-23 against provider documentation.**
 
 Prices are approximate API cost per million tokens and may be out of date. They exist to compare relative
 cost between models, which changes far less than the absolute figures, not to predict a bill — a
