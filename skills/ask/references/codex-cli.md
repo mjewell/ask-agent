@@ -8,7 +8,7 @@ when you need a flag this file does not cover, or when something here does not w
 ```sh
 python3 <skill-root>/scripts/ask-agent.py run \
   --cwd /repo --prompt-file /tmp/task.md \
-  -- codex exec --json -s read-only -C /repo --model gpt-5.6-sol -c model_reasoning_effort="medium" -
+  -- codex exec --json -s read-only -C /repo --model gpt-6-sol -c model_reasoning_effort="medium" -
 ```
 
 Piece by piece:
@@ -52,7 +52,7 @@ pass *both* a prompt argument and stdin, Codex appends stdin as a `<stdin>` bloc
 ```sh
 sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
 python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md \
-  -- codex exec resume "$sid" --json --model gpt-5.6-sol \
+  -- codex exec resume "$sid" --json --model gpt-6-sol \
      -c model_reasoning_effort="medium" -c sandbox_mode="read-only" -
 ```
 

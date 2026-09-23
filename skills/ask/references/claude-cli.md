@@ -10,7 +10,7 @@ python3 <skill-root>/scripts/ask-agent.py run \
   --cwd /repo --prompt-file /tmp/task.md \
   -- claude --print --verbose --output-format stream-json \
      --permission-mode plan --permission-prompts none \
-     --model claude-opus-5 --effort high
+     --model claude-opus-5-5 --effort high
 ```
 
 Piece by piece:
@@ -63,7 +63,7 @@ sid=$(python3 <skill-root>/scripts/ask-agent.py session JOB)
 python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/followup.md \
   -- claude --print --verbose --output-format stream-json --resume "$sid" \
      --permission-mode plan --permission-prompts none \
-     --model claude-opus-5 --effort high
+     --model claude-opus-5-5 --effort high
 ```
 
 The session id appears as `session_id` on the `system`/`init` event. `ask-agent session` recovers it, and `status` prints

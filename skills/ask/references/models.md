@@ -1,6 +1,7 @@
 # Model and effort choices
 
-**User-maintained. Verified 2026-09-19 against provider documentation and the local CLI pickers.**
+**User-maintained. Verified 2026-09-19 against provider documentation and the local CLI pickers; Opus 5.5 and
+GPT-6 Sol and Luna added 2026-09-23 from provider pricing.**
 
 Prices are approximate API cost per million tokens and may be out of date. They exist to compare relative
 cost between models, which changes far less than the absolute figures, not to predict a bill — a
@@ -15,17 +16,16 @@ working around it.
 
 | Model | In $/MTok | Out $/MTok | Effort options | Use it for |
 | --- | --- | --- | --- | --- |
-| `gpt-5.6-sol` | 4.0 | 20.0 | none, low, medium, high, xhigh, max | Flagship general model for complex professional work. The default choice. |
+| `gpt-6-sol` | 2.0 | 10.0 | none, low, medium, high, xhigh, max | Flagship general model for complex professional work. The default choice. |
 | `gpt-6-astra` | 10.0 | 50.0 | low, medium, high, xhigh, max, ultra | Most capable; reach for it only when `sol` is genuinely not enough. |
-| `gpt-5.6-terra` | 2.0 | 12.0 | none, low, medium, high, xhigh, max | Balances intelligence and cost. |
-| `gpt-5.6-luna` | 0.2 | 1.2 | none, low, medium, high, xhigh, max | Cost-sensitive, high-volume work. |
+| `gpt-6-luna` | 0.1 | 0.5 | none, low, medium, high, xhigh, max | Cost-sensitive, high-volume work: summaries, extraction, quick answers. |
 
 ## Claude Code (`claude --model ID --effort LEVEL`)
 
 | Model | Alias | In $/MTok | Out $/MTok | Effort options | Use it for |
 | --- | --- | --- | --- | --- | --- |
 | `claude-sonnet-5` | `sonnet` | 2.0 | 10.0 | low, medium, high, xhigh, max | Efficient routine work. The CLI default. |
-| `claude-opus-5` | `opus` | 5.0 | 25.0 | low, medium, high, xhigh, max | Everyday complex work. Roughly 2× Sonnet's usage. |
+| `claude-opus-5-5` | `opus` | 4.0 | 20.0 | low, medium, high, xhigh, max | Everyday complex work. Roughly 2× Sonnet's usage. Defaults to `medium` effort. |
 | `claude-fable-5-1` | `fable` | 10.0 | 50.0 | low, medium, high, xhigh, max | Hardest, longest-running tasks. Requires usage credits. |
 | `claude-haiku-4-5` | `haiku` | 1.0 | 5.0 | low, medium, high, xhigh, max | Fastest option for quick answers. |
 
