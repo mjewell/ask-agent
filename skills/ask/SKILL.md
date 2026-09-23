@@ -57,6 +57,17 @@ reference says which. Never interpolate prompt text into the command.
 Build the command from the chosen provider's reference, using the approved settings.
 Pass it unchanged after the runner's `--`, with the task's working directory and timeout.
 
+The timeout catches a runaway job; it is not a time budget. Cutting off a job that was
+making progress wastes its work, so err long:
+
+| Task | `--timeout` |
+| --- | --- |
+| Quick question, lookup, summarizing a file | `600` |
+| Most things: reviews, bug hunts, contained changes | Omit it; the default is 30 minutes. |
+| Large implementation, or broad work at `high` effort or above | `3600` |
+
+A task that seems to need longer is better split up, or resumed after a timeout.
+
 The runner prints a job ID and waits for completion. To run it in the background,
 save its stdout to a task-specific file. Once that file contains the job ID, use
 `wait JOB` when you need the result. Do not hand-roll a polling loop. `wait` reports
@@ -79,6 +90,10 @@ extract a result or the job failed, inspect `stderr.log` and `stdout.log` in the
 directory, which `status JOB` prints as `path`. The provider reference describes its
 output format, and its examples use `$dir` for that directory. A timed-out job often
 holds useful partial work there.
+
+A timed-out job's session survives, so resuming it with a request to continue is usually
+better than starting over. If it could write files, check the working tree first: it may
+have stopped partway through an edit.
 
 ## Follow up and manage jobs
 
