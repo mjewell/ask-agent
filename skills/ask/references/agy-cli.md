@@ -8,7 +8,7 @@ The binary is `agy`, not `gemini`.
 ## Recommended invocation
 
 ```sh
-python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --timeout 900 --prompt-file /tmp/task.md \
+python3 <skill-root>/scripts/ask-agent.py run --cwd /repo --prompt-file /tmp/task.md \
   -- agy --output-format stream-json --model gemini-3.8-flash-low --mode plan --print '{prompt}'
 ```
 

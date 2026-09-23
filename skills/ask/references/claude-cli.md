@@ -7,7 +7,7 @@ you need a flag this file does not cover, or when something here does not work.
 
 ```sh
 python3 <skill-root>/scripts/ask-agent.py run \
-  --cwd /repo --timeout 900 --prompt-file /tmp/task.md \
+  --cwd /repo --prompt-file /tmp/task.md \
   -- claude --print --verbose --output-format stream-json \
      --permission-mode plan --permission-prompts none \
      --model claude-opus-5 --effort high
