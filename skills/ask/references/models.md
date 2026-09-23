@@ -2,8 +2,9 @@
 
 **User-maintained. Verified 2026-09-19 against provider documentation and the local CLI pickers.**
 
-Prices are API cost per million tokens and exist to inform the quality/cost tradeoff, not to predict a bill —
-a subscription-based CLI may not bill this way at all. Availability depends on the user's account. Neither
+Prices are approximate API cost per million tokens and may be out of date. They exist to compare relative
+cost between models, which changes far less than the absolute figures, not to predict a bill — a
+subscription-based CLI may not bill this way at all. Availability depends on the user's account. Neither
 this table nor the runner checks entitlement: any provider-native model string is accepted, and the provider
 rejects what the account cannot use.
 

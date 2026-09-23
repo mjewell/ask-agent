@@ -13,7 +13,6 @@ import tempfile
 import time
 import types
 import unittest
-from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 SKILL = Path(__file__).resolve().parents[1] / 'skills' / 'ask'
@@ -34,12 +33,12 @@ class RunnerTests(unittest.TestCase):
         self.root_patch.start()
         self.addCleanup(self.root_patch.stop)
 
-    def cli(self, *args, input=None):
+    def cli(self, *args, input=''):
         return subprocess.run([sys.executable, str(SCRIPT), *args], env=self.env,
                               input=input, text=True, capture_output=True, timeout=20)
 
     def run_code(self, code, *options):
-        result = self.cli('run', '--cwd', str(self.root), *options,
+        result = self.cli('run', '--cwd', str(self.root), '--prompt-file', '-', *options,
                           '--', sys.executable, '-c', code)
         return result, result.stdout.strip()
 
@@ -74,7 +73,8 @@ class RunnerTests(unittest.TestCase):
         shutil.copytree(SKILL, installed, ignore=shutil.ignore_patterns('__pycache__'))
         script = installed / 'scripts' / 'ask-agent.py'
         code = 'print(\'{"type":"result","subtype":"success","result":"Installed answer"}\')'
-        result = subprocess.run([sys.executable, str(script), 'run', '--', sys.executable, '-c', code],
+        result = subprocess.run([sys.executable, str(script), 'run', '--prompt-file', '-', '--',
+                                 sys.executable, '-c', code], input='',
                                 cwd=self.root, env=self.env, text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         answer = subprocess.run([sys.executable, str(script), 'answer', result.stdout.strip()],
@@ -92,9 +92,12 @@ class RunnerTests(unittest.TestCase):
         folder = self.store / 'jobs' / job
         self.assertEqual((folder / 'stdout.log').read_text(), 'hello\n')
         self.assertEqual((folder / 'stderr.log').read_text(), 'error\n')
-        self.assertEqual(Path(self.cli('path', job).stdout.strip()), folder.resolve())
+        self.assertEqual(Path(json.loads(self.cli('status', job).stdout)['path']), folder.resolve())
+        self.assertEqual([p.name for p in (self.store / 'jobs').iterdir()], [job], 'staging left behind')
+        names = ('job.json', 'prompt.txt', 'runner.lock', 'stdout.log', 'stderr.log')
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), sorted(names))
         for path, mode in [(self.store, 0o700), (self.store / 'jobs', 0o700), (folder, 0o700),
-                           *[(folder / n, 0o600) for n in ('job.json', 'stdout.log', 'stderr.log')]]:
+                           *[(folder / n, 0o600) for n in names]]:
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), mode, path)
 
     def test_existing_loose_store_is_tightened(self):
@@ -109,7 +112,7 @@ class RunnerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.metadata(job)['exit_code'], 3)
         self.assertEqual(self.metadata(job)['status'], 'failed')
-        result = self.cli('run', '--', str(self.root / 'missing'))
+        result = self.cli('run', '--prompt-file', '-', '--', str(self.root / 'missing'))
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.metadata(result.stdout.strip())['status'], 'failed')
 
@@ -126,24 +129,67 @@ class RunnerTests(unittest.TestCase):
                 for name in ('prompt.txt', 'stdout.log'):
                     self.assertEqual((self.store / 'jobs' / job / name).read_text(), prompt)
 
+    def test_prompt_as_an_argument_is_still_saved(self):
+        """A CLI that takes its prompt as an argument gets it in place of the placeholder,
+        and nothing on stdin; the record keeps the placeholder and prompt.txt the text."""
+        prompt = 'Review café, $HOME, `quotes`, and newlines.\nSecond line.'
+        argv = [sys.executable, '-c', 'import sys; sys.stdout.write(repr((sys.argv[1:], sys.stdin.read())))',
+                '--print', '{prompt}', 'not{prompt}']
+        result = self.cli('run', '--prompt-file', '-', '--', *argv, input=prompt)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        job = result.stdout.strip()
+        folder = self.store / 'jobs' / job
+        self.assertEqual((folder / 'stdout.log').read_text(), repr((['--print', prompt, 'not{prompt}'], '')))
+        self.assertEqual((folder / 'prompt.txt').read_text(), prompt)
+        self.assertEqual(self.metadata(job)['argv'], argv)
+
+    def test_a_prompt_is_required(self):
+        result = self.cli('run', '--', sys.executable, '-c', 'pass')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('--prompt-file', result.stderr)
+        self.assertFalse((self.store / 'jobs').exists())
+        missing = self.cli('run', '--prompt-file', str(self.root / 'absent.md'), '--', sys.executable, '-c', 'pass')
+        self.assertIn('cannot read prompt file', missing.stderr)
+
     def test_session_and_lineage(self):
         _, job = self.run_code('print(\'{"thread_id":"thr_1234"}\')')
         self.assertEqual(self.cli('session', job).stdout.strip(), 'thr_1234')
         self.assertEqual(self.metadata(job)['session_id'], 'thr_1234')
 
-    def test_status_lists_by_start_time_not_job_id(self):
+    def write_job(self, job, created_at, **fields):
+        folder = self.store / 'jobs' / job
+        folder.mkdir(parents=True)
+        (folder / 'job.json').write_text(json.dumps(
+            {'job': job, 'status': 'succeeded', 'created_at': created_at, 'finished_at': created_at, **fields}))
+
+    def listed(self, *args):
+        result = self.cli('status', *args)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return [json.loads(line)['job'] for line in result.stdout.splitlines()]
+
+    def test_status_lists_newest_first_by_start_time_not_job_id(self):
         """Ids carry a random suffix, so two jobs started in the same second sort
         arbitrarily by name. The recorded start time orders them."""
         early, late = '20260101-120000-ffffff', '20260101-120000-000000'
-        for job, moment in ((early, '2026-01-01T12:00:00.100000+00:00'),
-                            (late, '2026-01-01T12:00:00.900000+00:00')):
-            folder = self.store / 'jobs' / job
-            folder.mkdir(parents=True)
-            (folder / 'job.json').write_text(json.dumps(
-                {'job': job, 'status': 'succeeded', 'created_at': moment, 'finished_at': moment}))
-        listed = [json.loads(line)['job'] for line in self.cli('status').stdout.splitlines()]
-        self.assertEqual(listed, [early, late])
-        self.assertEqual(sorted(listed), [late, early], 'id order must be the opposite')
+        self.write_job(early, '2026-01-01T12:00:00.100000+00:00')
+        self.write_job(late, '2026-01-01T12:00:00.900000+00:00')
+        self.assertEqual(self.listed(), [late, early])
+        self.assertEqual(sorted([late, early], reverse=True), [early, late], 'id order must be the opposite')
+
+    def test_status_limit_and_session(self):
+        jobs = [f'20260101-1200{i:02d}-aaaaaa' for i in range(25)]
+        for i, job in enumerate(jobs):
+            self.write_job(job, f'2026-01-01T12:00:{i:02d}+00:00', session_id='sess_a' if i < 3 else None)
+        newest_first = jobs[::-1]
+        self.assertEqual(self.listed(), newest_first[:20])
+        self.assertEqual(self.listed('--limit', '2'), newest_first[:2])
+        self.assertEqual(self.listed('--limit', '0'), newest_first)
+        # The session filter reaches past the default limit, and applies before it.
+        self.assertEqual(self.listed('--session', 'sess_a'), jobs[2::-1])
+        self.assertEqual(self.listed('--session', 'sess_a', '--limit', '1'), [jobs[2]])
+        self.assertEqual(self.listed('--session', 'sess_none'), [])
+        for args in (('--limit', '-1'), (jobs[0], '--limit', '20'), (jobs[0], '--session', 'sess_a')):
+            with self.subTest(args=args): self.assertNotEqual(self.cli('status', *args).returncode, 0)
 
     def test_answers(self):
         fixtures = [
@@ -199,9 +245,9 @@ class RunnerTests(unittest.TestCase):
         code = code or ('import json,subprocess,sys,time; '
                         'p=subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"]); '
                         'print(json.dumps({"thread_id":"thr_live", "child_pid":p.pid}),flush=True); time.sleep(60)')
-        proc = subprocess.Popen([sys.executable, str(SCRIPT), 'run', '--timeout', '15', '--',
-                                 sys.executable, '-c', code], env=self.env, stdout=handle,
-                                stderr=stderr or subprocess.DEVNULL)
+        proc = subprocess.Popen([sys.executable, str(SCRIPT), 'run', '--timeout', '15', '--prompt-file', '-',
+                                 '--', sys.executable, '-c', code], env=self.env, stdout=handle,
+                                stdin=subprocess.DEVNULL, stderr=stderr or subprocess.DEVNULL)
         def cleanup():
             if proc.poll() is None: proc.terminate()
             proc.wait(timeout=15)
@@ -222,14 +268,33 @@ class RunnerTests(unittest.TestCase):
         self.assert_dead(child_pid)
         self.assertEqual(self.metadata(job)['status'], 'cancelled')
 
-    def test_stop_verified_job(self):
+    def test_stop_waits_for_the_recorded_outcome(self):
         proc, job, child_pid = self.start_live_job()
-        # Identity verification is covered below; this tests signalling only our own child group.
-        with patch.object(ask_agent, 'process_matches_job', return_value=True):
-            ask_agent.cmd_stop(types.SimpleNamespace(job=job))
-        proc.wait(timeout=15)
-        self.assert_dead(child_pid)
+        self.assertEqual(json.loads(self.cli('status', job).stdout)['status'], 'running')
+        result = self.cli('stop', job)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), 'cancelled')
         self.assertEqual(self.metadata(job)['status'], 'cancelled')
+        self.assertEqual(proc.wait(timeout=15), 130)
+        self.assert_dead(child_pid)
+        again = self.cli('stop', job)
+        self.assertNotEqual(again.returncode, 0)
+        self.assertIn('not running (status: cancelled)', again.stderr)
+
+    def test_a_runner_that_dies_is_reported_at_once(self):
+        """The lock goes with the runner, and the provider it leaves behind cannot hold it."""
+        proc, job, child_pid = self.start_live_job()
+        self.addCleanup(lambda: self.alive(child_pid) and os.killpg(os.getpgid(child_pid), signal.SIGKILL))
+        proc.kill(); proc.wait(timeout=5)
+        self.assertTrue(self.alive(child_pid), 'the orphaned provider is outside the runner')
+        self.assertEqual(self.metadata(job)['status'], 'running')
+        self.assertEqual(json.loads(self.cli('status', job).stdout)['status'], 'runner_died')
+        start = time.monotonic()
+        waited = self.cli('wait', job)
+        self.assertLess(time.monotonic() - start, 3)
+        self.assertEqual((waited.stdout.strip(), waited.returncode), ('runner_died', 1))
+        self.assertIn('not running (status: runner_died)', self.cli('stop', job).stderr)
+        self.assertIn('job is runner_died', self.cli('answer', job).stderr)
 
     def test_repeated_interrupt_preserves_outcome_and_kills_stubborn_child(self):
         code = ('import json,os,signal,time; '
@@ -243,7 +308,6 @@ class RunnerTests(unittest.TestCase):
             proc.wait(timeout=12)
             data = self.metadata(job)
             self.assertEqual(data['status'], 'cancelled')
-            self.assertEqual(data['stop_reason'], 'interrupted')
             self.assertEqual(data['exit_code'], -signal.SIGKILL)
             self.assertIsNotNone(data['finished_at'])
         finally:
@@ -259,23 +323,6 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(self.metadata(job)['exit_code'], 0)
         self.assertLess(elapsed, 4, 'gracefully exited child should not consume the full grace period')
 
-    def test_real_process_identity_and_stop(self):
-        proc, job, child_pid = self.start_live_job()
-        pid = self.metadata(job)['process_group']
-        try:
-            check = subprocess.run(['ps', 'eww', '-p', str(pid), '-o', 'command='],
-                                   capture_output=True, text=True, timeout=2)
-        except OSError:
-            self.skipTest('process inspection is unavailable in this environment')
-        if check.returncode != 0:
-            self.skipTest('process inspection is unavailable in this environment')
-        self.assertIs(ask_agent.process_matches_job(pid, job), True)
-        result = self.cli('stop', job)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        proc.wait(timeout=15)
-        self.assert_dead(child_pid)
-        self.assertEqual(self.metadata(job)['status'], 'cancelled')
-
     def test_warning_and_status_listing_with_corrupt_record(self):
         result, good = self.run_code('pass')
         self.assertEqual(result.returncode, 0)
@@ -284,35 +331,7 @@ class RunnerTests(unittest.TestCase):
         result = self.cli('status')
         records = {e['job']: e for e in map(json.loads, result.stdout.splitlines())}
         self.assertEqual(records[good]['status'], 'succeeded')
-        self.assertEqual(records[bad]['status'], 'corrupt')
-
-    def test_process_identity(self):
-        job = '20260101-120000-a1b2c3'
-        with patch.object(ask_agent.os, 'kill'):
-            for output, expected in [('cmd ASK_AGENT_JOB=' + job, True),
-                                     ('cmd ASK_AGENT_JOB=' + job + 'extra', False),
-                                     ('cmd without visible environment', None)]:
-                with self.subTest(output=output), patch.object(ask_agent.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0, stdout=output)):
-                    self.assertIs(ask_agent.process_matches_job(123, job), expected)
-            with patch.object(ask_agent.subprocess, 'run', side_effect=PermissionError):
-                self.assertIsNone(ask_agent.process_matches_job(123, job))
-        with patch.object(ask_agent.os, 'kill', side_effect=ProcessLookupError):
-            self.assertIs(ask_agent.process_matches_job(123, job), False)
-
-    def test_unknown_and_vanished_stop(self):
-        _, job = self.run_code('pass')
-        ask_agent.update(job, status='running', process_group=123)
-        args = types.SimpleNamespace(job=job)
-        with patch.object(ask_agent, 'process_matches_job', return_value=None), patch.object(ask_agent, 'kill_group') as kill:
-            self.assertEqual(ask_agent.effective_status(job, self.metadata(job)), 'unknown')
-            with self.assertRaisesRegex(SystemExit, 'cannot verify'): ask_agent.cmd_stop(args)
-            self.assertEqual(self.metadata(job)['status'], 'running')
-            kill.assert_not_called()
-        with patch.object(ask_agent, 'process_matches_job', return_value=False), patch.object(ask_agent, 'kill_group') as kill:
-            self.assertEqual(ask_agent.effective_status(job, self.metadata(job)), 'process_gone')
-            with self.assertRaisesRegex(SystemExit, 'process_gone'): ask_agent.cmd_stop(args)
-            self.assertEqual(self.metadata(job)['status'], 'process_gone')
-            kill.assert_not_called()
+        self.assertEqual(records[bad]['status'], 'unreadable')
 
     def test_relative_store_is_refused(self):
         """A relative store would follow the caller's directory around, hiding jobs."""
@@ -320,31 +339,32 @@ class RunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, 'must be an absolute path'):
                 spec.loader.exec_module(importlib.util.module_from_spec(spec))
 
-    def test_status_separates_a_missing_record_from_a_damaged_one(self):
+    def test_status_of_an_unreadable_or_unknown_job(self):
         _, job = self.run_code('pass')
         (self.store / 'jobs' / job / 'job.json').write_text('{broken')
         damaged = self.cli('status', job)
-        self.assertEqual(json.loads(damaged.stdout)['status'], 'corrupt')
+        self.assertEqual(json.loads(damaged.stdout)['status'], 'unreadable')
         self.assertNotEqual(damaged.returncode, 0)
+        (self.store / 'jobs' / job / 'job.json').unlink()
+        self.assertEqual(json.loads(self.cli('status', job).stdout)['status'], 'unreadable')
         gone = self.cli('status', '20260101-000000-aaaaaa')
-        self.assertEqual(json.loads(gone.stdout)['status'], 'missing')
+        self.assertIn('unknown job', gone.stderr)
         self.assertNotEqual(gone.returncode, 0)
         # A listing still succeeds with an unreadable record in it.
         self.assertEqual(self.cli('status').returncode, 0)
-        self.assertNotEqual(self.cli('path', '20260101-000000-aaaaaa').returncode, 0)
 
-    def test_a_record_of_the_wrong_shape_is_corrupt_everywhere(self):
+    def test_a_record_of_the_wrong_shape_is_unreadable_everywhere(self):
         """Valid JSON that is not an object is a damaged record. It must not take down a
         listing of every other job, and must never surface as a traceback."""
         _, good = self.run_code('pass')
         _, bad = self.run_code('pass')
         (self.store / 'jobs' / bad / 'job.json').write_text('[]')
         named = self.cli('status', bad)
-        self.assertEqual(json.loads(named.stdout)['status'], 'corrupt')
+        self.assertEqual(json.loads(named.stdout)['status'], 'unreadable')
         self.assertNotEqual(named.returncode, 0)
         listed = self.cli('status')
         records = {e['job']: e for e in map(json.loads, listed.stdout.splitlines())}
-        self.assertEqual(records[bad]['status'], 'corrupt')
+        self.assertEqual(records[bad]['status'], 'unreadable')
         self.assertEqual(records[good]['status'], 'succeeded')
         self.assertEqual(listed.returncode, 0)
         self.assertEqual(listed.stderr, '')
@@ -354,11 +374,6 @@ class RunnerTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('Traceback', result.stderr)
                 self.assertIn('not an object', result.stderr)
-        # One damaged record must not make the rest of the store unprunable.
-        os.utime(self.store / 'jobs' / bad, (time.time() - 40 * 86400,) * 2)
-        matched, _ = self.prune()
-        self.assertEqual(matched[bad]['status'], 'corrupt')
-        self.assertNotIn(good, matched)
 
     def test_wait_reports_each_outcome(self):
         for code, status, expected in [('pass', 'succeeded', 0), ('raise SystemExit(3)', 'failed', 1)]:
@@ -377,24 +392,6 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(proc.wait(timeout=15), 0)
 
-    def test_wait_waits_out_a_job_that_may_only_be_cleaning_up(self):
-        """A runner cleaning up and a runner that died read the same. Only a reading that
-        outlasts the cleanup it could be explained by is a conclusion."""
-        _, job = self.run_code('pass')
-        args = types.SimpleNamespace(job=job, timeout=None)
-        # A job that reappears with an outcome was only ever cleaning up.
-        with patch.object(ask_agent, 'effective_status', side_effect=['process_gone', 'succeeded']), \
-             patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()) as out:
-            self.assertEqual(ask_agent.cmd_wait(args), 0)
-        self.assertEqual(out.getvalue().strip(), 'succeeded')
-        # A reading that persists past the window is the runner never coming back.
-        clock = iter([0.0, 0.0, 1.0, 2.0] + [ask_agent.GONE_AFTER + 1.0] * 8)
-        with patch.object(ask_agent, 'effective_status', return_value='process_gone'), \
-             patch.object(ask_agent.time, 'monotonic', lambda: next(clock)), \
-             patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()) as out:
-            self.assertEqual(ask_agent.cmd_wait(args), 1)
-        self.assertEqual(out.getvalue().strip(), 'process_gone')
-
     def test_wait_gives_up_without_stopping_the_job(self):
         proc, job, child_pid = self.start_live_job()
         result = self.cli('wait', job, '--timeout', '1')
@@ -409,11 +406,11 @@ class RunnerTests(unittest.TestCase):
 
     def test_wait_default_window_follows_the_job(self):
         _, job = self.run_code('pass', '--timeout', '7200')
-        with patch.object(ask_agent, 'effective_status', return_value='running'), \
-             patch.object(ask_agent.time, 'monotonic', side_effect=[0.0, 7259.0, 7261.0]), \
+        with patch.object(ask_agent, 'job_state', return_value={'status': 'running'}), \
+             patch.object(ask_agent.time, 'monotonic', side_effect=[0.0, 7229.0, 7231.0]), \
              patch.object(ask_agent.time, 'sleep'), contextlib.redirect_stderr(io.StringIO()) as err:
             self.assertEqual(ask_agent.cmd_wait(types.SimpleNamespace(job=job, timeout=None)), 125)
-        self.assertIn('after 7260s', err.getvalue())
+        self.assertIn('after 7230s', err.getvalue())
 
     def test_default_store_is_the_home_directory(self):
         def load(environ):
@@ -441,7 +438,8 @@ class RunnerTests(unittest.TestCase):
         quiet, _ = self.run_code('print(\'{"session_id":"sess_1"}\')')
         self.assertNotIn('no session id', quiet.stderr)
         # argv is no longer consulted, so a structured-looking flag changes nothing.
-        looks_structured = self.cli('run', '--', sys.executable, '-c', 'pass', '--output-format=json')
+        looks_structured = self.cli('run', '--prompt-file', '-', '--', sys.executable, '-c', 'pass',
+                                    '--output-format=json')
         self.assertIn('no session id', looks_structured.stderr)
         loud, _ = self.run_code('pass')
         self.assertIn('no session id', loud.stderr)
@@ -449,86 +447,28 @@ class RunnerTests(unittest.TestCase):
         failed, _ = self.run_code('raise SystemExit(1)')
         self.assertNotIn('no session id', failed.stderr)
 
-    def age_job(self, job, days, **patch):
-        stamp = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-        data = {**self.metadata(job), 'created_at': stamp, 'finished_at': stamp, **patch}
-        (self.store / 'jobs' / job / 'job.json').write_text(json.dumps(data))
-        return job
-
-    def prune_in_process(self, **kwargs):
-        with contextlib.redirect_stdout(io.StringIO()) as out:
-            ask_agent.cmd_prune(types.SimpleNamespace(older_than=0, delete=True, **kwargs))
-        return out.getvalue()
-
-    def prune(self, *args):
-        result = self.cli('prune', *args)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        return {json.loads(line)['job']: json.loads(line) for line in result.stdout.splitlines()}, result
-
-    def test_prune_lists_before_it_deletes(self):
-        old = self.age_job(self.run_code('print(\'{"session_id":"sess_old"}\')')[1], 40)
-        recent = self.age_job(self.run_code('pass')[1], 2)
-        listed, result = self.prune()
-        self.assertEqual(set(listed), {old})
-        self.assertEqual(listed[old]['session_id'], 'sess_old')
-        self.assertFalse(listed[old]['deleted'])
-        self.assertIn('re-run with --delete', result.stderr)
-        # Nothing is removed without --delete.
-        self.assertEqual(set(p.name for p in (self.store / 'jobs').iterdir()), {old, recent})
-        listed, _ = self.prune('--delete')
-        self.assertTrue(listed[old]['deleted'])
-        self.assertEqual(set(p.name for p in (self.store / 'jobs').iterdir()), {recent})
-
-    def test_prune_removes_a_running_job_and_the_runner_says_so(self):
-        """Nothing is exempt. Pruning a live job is the same as deleting its directory by
-        hand: the provider is still cleaned up, and the runner reports what happened."""
+    def test_a_record_deleted_while_running_is_reported(self):
+        """Deleting a live job's directory does not interrupt the run; the provider is still
+        cleaned up, and the runner reports that it could not record the outcome."""
         errors = (self.root / 'runner-stderr.txt').open('w+')
         self.addCleanup(errors.close)
-        # Pruning does not interrupt a run; it only fails the final write.
         brief = ('import json,subprocess,sys,time; '
                  'p=subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"]); '
-                 'print(json.dumps({"thread_id":"thr_live","child_pid":p.pid}),flush=True); time.sleep(4)')
+                 'print(json.dumps({"child_pid":p.pid}),flush=True); time.sleep(2)')
         proc, job, child_pid = self.start_live_job(brief, stderr=errors)
-        self.assertIsNone(self.metadata(job)['session_id'])
-        preview, _ = self.prune('--older-than', '0')
-        self.assertEqual(preview[job]['session_id'], 'thr_live')
-        listed, _ = self.prune('--older-than', '0', '--delete')
-        self.assertTrue(listed[job]['deleted'])
-        self.assertEqual(listed[job]['session_id'], 'thr_live')
-        self.assertFalse((self.store / 'jobs' / job).exists())
+        shutil.rmtree(self.store / 'jobs' / job)
         self.assertEqual(proc.wait(timeout=15), 1)
         self.assert_dead(child_pid)
         errors.seek(0)
-        self.assertIn('disappeared while it ran', errors.read())
-
-    def test_prune_removes_a_record_too_damaged_to_read(self):
-        bad = self.store / 'jobs' / '20260101-000000-badbad'
-        bad.mkdir(parents=True); (bad / 'job.json').write_text('{broken')
-        os.utime(bad, (time.time() - 40 * 86400,) * 2)
-        listed, _ = self.prune('--delete')
-        self.assertEqual(listed['20260101-000000-badbad']['status'], 'corrupt')
-        self.assertFalse(bad.exists())
-
-    def test_prune_window_and_argument_validation(self):
-        job = self.age_job(self.run_code('pass')[1], 10)
-        self.assertEqual(set(self.prune('--older-than', '30')[0]), set())
-        self.assertEqual(set(self.prune('--older-than', '5')[0]), {job})
-        self.assertNotEqual(self.cli('prune', '--older-than', '-1').returncode, 0)
-        self.assertTrue((self.store / 'jobs' / job).is_dir())
-
-    def test_prune_refuses_to_follow_a_symlink_out_of_the_store(self):
-        outside = self.root / 'precious'; outside.mkdir(); (outside / 'keep.txt').write_text('keep')
-        (self.store / 'jobs').mkdir(parents=True, exist_ok=True)
-        (self.store / 'jobs' / '20260101-000000-abcdef').symlink_to(outside)
-        with self.assertRaises(SystemExit):
-            ask_agent.remove_job('20260101-000000-abcdef')
-        self.assertTrue((outside / 'keep.txt').exists())
+        self.assertIn('was deleted while it ran', errors.read())
 
     def test_validation_and_provider_flags(self):
-        for args in [('path', '../../etc'), ('run', '--'), ('run', '--timeout', '0', '--', 'true'),
-                     ('run', '--cwd', str(self.root / 'missing'), '--', 'true')]:
+        for args in [('status', '../../etc'), ('session', '../../etc'), ('run', '--prompt-file', '-', '--'),
+                     ('run', '--prompt-file', '-', '--timeout', '0', '--', 'true'),
+                     ('run', '--prompt-file', '-', '--cwd', str(self.root / 'missing'), '--', 'true')]:
             with self.subTest(args=args): self.assertNotEqual(self.cli(*args).returncode, 0)
-        result = self.cli('run', '--', sys.executable, '-c', 'import sys; print(sys.argv[1:])', '--cwd', '--timeout', '--json')
+        result = self.cli('run', '--prompt-file', '-', '--', sys.executable, '-c', 'import sys; print(sys.argv[1:])',
+                          '--cwd', '--timeout', '--json')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.metadata(result.stdout.strip())['argv'][-3:], ['--cwd', '--timeout', '--json'])
 
