@@ -156,19 +156,40 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(self.cli('session', job).stdout.strip(), 'thr_1234')
         self.assertEqual(self.metadata(job)['session_id'], 'thr_1234')
 
-    def test_status_lists_by_start_time_not_job_id(self):
+    def write_job(self, job, created_at, **fields):
+        folder = self.store / 'jobs' / job
+        folder.mkdir(parents=True)
+        (folder / 'job.json').write_text(json.dumps(
+            {'job': job, 'status': 'succeeded', 'created_at': created_at, 'finished_at': created_at, **fields}))
+
+    def listed(self, *args):
+        result = self.cli('status', *args)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return [json.loads(line)['job'] for line in result.stdout.splitlines()]
+
+    def test_status_lists_newest_first_by_start_time_not_job_id(self):
         """Ids carry a random suffix, so two jobs started in the same second sort
         arbitrarily by name. The recorded start time orders them."""
         early, late = '20260101-120000-ffffff', '20260101-120000-000000'
-        for job, moment in ((early, '2026-01-01T12:00:00.100000+00:00'),
-                            (late, '2026-01-01T12:00:00.900000+00:00')):
-            folder = self.store / 'jobs' / job
-            folder.mkdir(parents=True)
-            (folder / 'job.json').write_text(json.dumps(
-                {'job': job, 'status': 'succeeded', 'created_at': moment, 'finished_at': moment}))
-        listed = [json.loads(line)['job'] for line in self.cli('status').stdout.splitlines()]
-        self.assertEqual(listed, [early, late])
-        self.assertEqual(sorted(listed), [late, early], 'id order must be the opposite')
+        self.write_job(early, '2026-01-01T12:00:00.100000+00:00')
+        self.write_job(late, '2026-01-01T12:00:00.900000+00:00')
+        self.assertEqual(self.listed(), [late, early])
+        self.assertEqual(sorted([late, early], reverse=True), [early, late], 'id order must be the opposite')
+
+    def test_status_limit_and_session(self):
+        jobs = [f'20260101-1200{i:02d}-aaaaaa' for i in range(25)]
+        for i, job in enumerate(jobs):
+            self.write_job(job, f'2026-01-01T12:00:{i:02d}+00:00', session_id='sess_a' if i < 3 else None)
+        newest_first = jobs[::-1]
+        self.assertEqual(self.listed(), newest_first[:20])
+        self.assertEqual(self.listed('--limit', '2'), newest_first[:2])
+        self.assertEqual(self.listed('--limit', '0'), newest_first)
+        # The session filter reaches past the default limit, and applies before it.
+        self.assertEqual(self.listed('--session', 'sess_a'), jobs[2::-1])
+        self.assertEqual(self.listed('--session', 'sess_a', '--limit', '1'), [jobs[2]])
+        self.assertEqual(self.listed('--session', 'sess_none'), [])
+        for args in (('--limit', '-1'), (jobs[0], '--limit', '20'), (jobs[0], '--session', 'sess_a')):
+            with self.subTest(args=args): self.assertNotEqual(self.cli('status', *args).returncode, 0)
 
     def test_answers(self):
         fixtures = [

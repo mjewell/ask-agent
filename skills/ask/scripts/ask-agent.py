@@ -42,6 +42,7 @@ EXIT_CODES = {"succeeded": 0, "timed_out": 124, "cancelled": 130}
 # Covers a runner's cleanup after SIGTERM: a 5s kill grace, a reap capped at 10s, a log
 # scan and a write.
 CLEANUP_SECONDS = 30
+STATUS_LIMIT = 20
 
 def now(): return datetime.now(timezone.utc).isoformat()
 def jobs_root(): return (ROOT / "jobs").resolve()
@@ -268,10 +269,19 @@ def started_at(row):
 def cmd_status(args):
     """A listing succeeds even when one record in it is unreadable; a single named job
     that cannot be read fails instead."""
-    if args.job and not job_dir(args.job).is_dir(): raise SystemExit(f"unknown job {args.job}")
-    rows = sorted((status_row(job) for job in ([args.job] if args.job else known_jobs())), key=started_at)
-    for row in rows: print(json.dumps(row, sort_keys=True))
-    return 1 if args.job and rows[0]["status"] == "unreadable" else 0
+    if args.job:
+        if args.session or args.limit is not None: raise SystemExit("JOB cannot be combined with --session or --limit")
+        if not job_dir(args.job).is_dir(): raise SystemExit(f"unknown job {args.job}")
+        row = status_row(args.job)
+        print(json.dumps(row, sort_keys=True))
+        return 1 if row["status"] == "unreadable" else 0
+    limit = STATUS_LIMIT if args.limit is None else args.limit
+    if limit < 0: raise SystemExit("--limit must not be negative")
+    rows = [status_row(job) for job in known_jobs()]
+    if args.session: rows = [row for row in rows if row.get("session_id") == args.session]
+    for row in sorted(rows, key=started_at, reverse=True)[:limit or None]:
+        print(json.dumps(row, sort_keys=True))
+    return 0
 
 def cmd_session(args):
     job = check_job(args.job)
@@ -340,8 +350,11 @@ def main():
     run.add_argument("--prompt-file", metavar="PATH", required=True,
                      help=f"saved as prompt.txt and piped to the command's stdin, or substituted for "
                           f"an argument that is exactly {PROMPT_ARG}; `-` reads this process's stdin")
-    status = sub.add_parser("status", help="show job state and directory; omit JOB to list all jobs")
+    status = sub.add_parser("status", help="show a job's state and directory; omit JOB to list jobs, newest first")
     status.add_argument("job", nargs="?")
+    status.add_argument("--session", metavar="ID", help="list only jobs in this provider session")
+    status.add_argument("--limit", type=int, metavar="N",
+                        help=f"list at most N jobs (default {STATUS_LIMIT}); 0 lists all")
     answer = sub.add_parser("answer", help="print the final answer from a successful job"); answer.add_argument("job")
     session = sub.add_parser("session", help="print the job's native session id, even while it runs")
     session.add_argument("job")

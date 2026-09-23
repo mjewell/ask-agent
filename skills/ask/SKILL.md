@@ -85,15 +85,15 @@ holds useful partial work there.
 | Command | Purpose |
 | --- | --- |
 | `answer JOB` | Print the final answer from a successful job. |
-| `status [JOB]` | Show status, session ID, and job directory; omit JOB to list all jobs, oldest first. |
+| `status [JOB]` | Show status, session ID, and job directory. Without JOB, list the 20 newest jobs; `--limit N` changes that (`0` for all), `--session ID` filters. |
 | `session JOB` | Get the provider's session ID, including during a run. |
 | `wait JOB [--timeout SECONDS]` | Block until a backgrounded job stops running. |
 | `stop JOB` | Stop the job and wait for its outcome to be recorded. |
 
 To continue a conversation, get its ID with `session JOB` and use the resume command
 in the provider reference. Pass the approved model, effort, and permission settings
-again. Jobs in one conversation share a session ID, and `status` prints it on every
-job, so filtering the listing on that ID recovers the chain, oldest first.
+again. Jobs in one conversation share a session ID, so `status --session ID` lists the
+whole chain, newest first.
 
 Jobs live under `~/.ask-agent/jobs/`, or `$ASK_AGENT_HOME/jobs/` when that is set to an
 absolute path, so a job remains resumable from any directory.

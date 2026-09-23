@@ -52,7 +52,7 @@ Each job directory holds:
 | `runner.lock` | Held by the runner while it lives, which is how a live job is told from a dead one. |
 
 Files are private (`0600` inside `0700` directories). Jobs in one conversation share a
-`session_id`, so filtering `status` output on it recovers the chain in order.
+`session_id`, so `status --session ID` lists the whole chain.
 
 Logs are untrusted provider output and can contain secrets. Ask Agent provides no
 sandbox; permissions belong to the provider or the container you run it in.
