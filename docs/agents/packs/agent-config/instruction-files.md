@@ -6,7 +6,7 @@ tier: required
 
 ## Where a rule goes
 
-General rules live in mjewell/agent-config: edit them there when that repo is available, otherwise give me the exact text to add. A rule that applies from the first turn or to most tasks goes inline in `context/agents.md`. One needed only for some kind of task goes in a doc set, `context/<name>.md` (or a `context/<name>/` folder whose `index.md` links to the rest, if it needs several files), marked `tier: required` unless it depends on a repo's stack or kind of project, where a repo might want something different.
+General rules live in mjewell/agent-config: edit them there when that repo is available, otherwise give me the exact text to add. A rule that applies from the first turn or to most tasks goes inline in `context/pack.md`. One needed only for some kind of task goes in a doc set, `context/<name>.md` (or a `context/<name>/` folder whose `index.md` links to the rest, if it needs several files), marked `tier: required` unless it depends on a repo's stack or kind of project, where a repo might want something different.
 
 Project-specific rules go in the repo's AGENTS.md, outside the context-packs blocks, or in its context docs, and cover only what's structurally unique to that project — its architecture, commands, and environment quirks such as a test setup that can't run — never general working rules. Instruction files state the current rule or fact, never the history of what changed.
 
