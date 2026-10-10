@@ -25,6 +25,6 @@ when: Editing `src/billing/**`
 The repo's `project` context pack lists these docs in AGENTS.md, generated from their `when` lines. After adding a doc or changing its `when`, resync so the table matches, and the first time, install the pack:
 
 ```bash
-npx github:mjewell/context-packs add project . --path docs/agents/project  # first doc only
-npx github:mjewell/context-packs
+npx context-packs add project . --path docs/agents/project  # first doc only
+npx context-packs
 ```

@@ -4,7 +4,7 @@
 Context packs bring shared rules and docs in from elsewhere. Each pack has a block in this file holding its rules and a table of its context docs. Before starting work that a row in a pack's table matches, read its doc. A pack's block, and any of its docs under `docs/agents/packs/`, are copied from the `from` and `path` in the block's start marker: change them there, never here.
 <!-- context-packs:end sha256:135a93783b06 -->
 
-<!-- context-packs:start agent-config from=https://github.com/mjewell/agent-config.git path=context ref=f9aecc07b8c9392b14f4267948b9282b14b686f4 -->
+<!-- context-packs:start agent-config from=https://github.com/mjewell/agent-config.git path=context ref=c788fc62dc83203d39dcada9c50f80d38fe4148a -->
 ## Collaboration
 
 I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask.
@@ -78,4 +78,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or editing a skill (`**/SKILL.md`) | `docs/agents/packs/agent-config/skill-authoring.md` |
 | Writing or changing tests, or fixing a bug | `docs/agents/packs/agent-config/testing.md` |
 | Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/packs/agent-config/writing-for-humans.md` |
-<!-- context-packs:end sha256:502bf782226e -->
+<!-- context-packs:end sha256:549e3284ea1e -->
