@@ -1,4 +1,10 @@
-<!-- agent-config:start (synced from context/ in mjewell/agent-config; edit it there, not here) -->
+<!-- context-packs:start header -->
+## Context Packs
+
+Context packs bring shared rules and docs in from elsewhere. Each pack has a block in this file holding its rules and a table of its context docs. Before starting work that a row in a pack's table matches, read its doc. A pack's block, and any of its docs under `docs/agents/packs/`, are copied from the `from` and `path` in the block's start marker: change them there, never here.
+<!-- context-packs:end sha256:135a93783b06 -->
+
+<!-- context-packs:start agent-config from=https://github.com/mjewell/agent-config.git path=context ref=99899811272d3c345c8c2ae21906faf1f91520fc -->
 ## Collaboration
 
 I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask.
@@ -11,11 +17,7 @@ When we work through multi-point material together — code reviews, long messag
 
 ## Instruction Files
 
-When I correct you in a way that generalizes, add or update a rule, following `docs/agents/synced/instruction-files/index.md`.
-
-## Context Docs
-
-Context docs hold knowledge that applies to only some work. Before starting work that a row in a context table matches, read its doc. A repo lists its own docs in a `## Project context` table in AGENTS.md, and the docs synced from agent-config in the Synced context table at the end of the agent-config block. Everything under `docs/agents/synced/` comes from mjewell/agent-config: change it there, never in the repo.
+When I correct you in a way that generalizes, add or update a rule, following the doc on instruction files in the agent-config context table.
 
 ## Working Across Repos
 
@@ -67,13 +69,13 @@ Exception: scheduled routines whose configuration I approved at creation may pus
 
 Edit only files I own. Plugins, synced skills, and installed dependencies belong to someone else: report a problem in one, and leave the file alone.
 
-## Synced context
+## agent-config context
 
 | When | Read |
 |---|---|
-| Committing, pushing, creating a git worktree, or opening or updating a PR | `docs/agents/synced/git-and-prs/index.md` |
-| Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `docs/agents/synced/instruction-files/index.md` |
-| Writing or editing a skill (`**/SKILL.md`) | `docs/agents/synced/skill-authoring/index.md` |
-| Writing or changing tests, or fixing a bug | `docs/agents/synced/testing/index.md` |
-| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/synced/writing-for-humans/index.md` |
-<!-- agent-config:end sha256:ad0f8633aa26 -->
+| Committing, pushing, creating a git worktree, or opening or updating a PR | `docs/agents/packs/agent-config/git-and-prs.md` |
+| Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `docs/agents/packs/agent-config/instruction-files.md` |
+| Writing or editing a skill (`**/SKILL.md`) | `docs/agents/packs/agent-config/skill-authoring.md` |
+| Writing or changing tests, or fixing a bug | `docs/agents/packs/agent-config/testing.md` |
+| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/packs/agent-config/writing-for-humans.md` |
+<!-- context-packs:end sha256:479574571edc -->
