@@ -1,6 +1,5 @@
 ---
 when: Committing, pushing, creating a git worktree, or opening or updating a PR
-tier: required
 ---
 # Git and pull requests
 

@@ -1,6 +1,5 @@
 ---
 when: Writing or changing tests, or fixing a bug
-tier: required
 ---
 # Testing
 

@@ -1,6 +1,5 @@
 ---
 when: Writing or editing a skill (`**/SKILL.md`)
-tier: required
 ---
 # Skill authoring
 

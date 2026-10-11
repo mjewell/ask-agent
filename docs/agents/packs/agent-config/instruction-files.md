@@ -1,12 +1,11 @@
 ---
 when: Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc
-tier: required
 ---
 # Instruction files and context docs
 
 ## Where a rule goes
 
-General rules live in mjewell/agent-config: edit them there when that repo is available, otherwise give me the exact text to add. A rule that applies from the first turn or to most tasks goes inline in `context/pack.md`. One needed only for some kind of task goes in a doc set, `context/<name>.md` (or a `context/<name>/` folder whose `index.md` links to the rest, if it needs several files), marked `tier: required` unless it depends on a repo's stack or kind of project, where a repo might want something different.
+General rules live in mjewell/agent-config: edit them there when that repo is available, otherwise give me the exact text to add. A rule that applies from the first turn or to most tasks goes inline in `context/pack.md`. One needed only for some kind of task goes in a doc, `context/<name>.md`, which every repo gets. One that depends on a repo's stack or kind of project, where a repo might want something different, goes in an optional nested pack instead: a `context/<name>/` folder whose `pack.md` holds its rules, with front matter saying when to read it and `optional: true`, beside any docs it needs.
 
 Project-specific rules go in the repo's AGENTS.md, outside the context-packs blocks, or in its context docs, and cover only what's structurally unique to that project — its architecture, commands, and environment quirks such as a test setup that can't run — never general working rules. Instruction files state the current rule or fact, never the history of what changed.
 
@@ -20,7 +19,7 @@ when: Editing `src/billing/**`
 ---
 ```
 
-`when` names what the agent will be doing or touching, as a path glob or a kind of task, so a row's relevance shows before its doc is read. A doc is a single `<name>.md`, or a `<name>/` folder whose `index.md` links to the rest. Keep it flat: each level is another read an agent can skip, so nest only when an area has enough docs that one entry serves better than several.
+`when` names what the agent will be doing or touching, as a path glob or a kind of task, so a row's relevance shows before its doc is read. A folder of docs needs no index: each doc gets its own row. Give a folder a `pack.md`, with the same front matter, only when an area has enough docs that one row serves better than several, since the folder then gets one row pointing at a generated index of its docs, and each such level is another read an agent can skip.
 
 The repo's `project` context pack lists these docs in AGENTS.md, generated from their `when` lines. After adding a doc or changing its `when`, resync so the table matches, and the first time, install the pack:
 

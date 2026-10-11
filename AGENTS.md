@@ -1,10 +1,10 @@
 <!-- context-packs:start header -->
 ## Context Packs
 
-Context packs bring shared rules and docs in from elsewhere. Each pack has a block in this file holding its rules and a table of its context docs. Before starting work that a row in a pack's table matches, read its doc. A pack's block, and any of its docs under `docs/agents/packs/`, are copied from the `from` and `path` in the block's start marker: change them there, never here.
-<!-- context-packs:end sha256:135a93783b06 -->
+Context packs bring shared rules and docs in from elsewhere. Each pack has a block in this file holding its rules and a table of its context docs, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. A pack's block, and everything under `docs/agents/packs/`, are generated from the `from` and `path` in the block's start marker: change them there, never here.
+<!-- context-packs:end sha256:9ca6e3aa65e7 -->
 
-<!-- context-packs:start agent-config from=https://github.com/mjewell/agent-config.git path=context ref=82b9670395bcb56761b6d21d3eda3ad32dd2a026 -->
+<!-- context-packs:start agent-config from=https://github.com/mjewell/agent-config.git path=context ref=ffe16c23206221ef01b810df0a8d56891f709435 -->
 ## Collaboration
 
 I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask.
@@ -78,4 +78,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or editing a skill (`**/SKILL.md`) | `docs/agents/packs/agent-config/skill-authoring.md` |
 | Writing or changing tests, or fixing a bug | `docs/agents/packs/agent-config/testing.md` |
 | Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/packs/agent-config/writing-for-humans.md` |
-<!-- context-packs:end sha256:ab502f1f490e -->
+<!-- context-packs:end sha256:d064fe25657d -->
