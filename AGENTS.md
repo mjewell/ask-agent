@@ -1,10 +1,10 @@
 <!-- context-packs:start header -->
 ## Context Packs
 
-Context packs bring shared rules and docs in from elsewhere. Each pack has a block in this file holding its rules and a table of its context docs, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. A pack's block, and everything under `docs/agents/packs/`, are generated from the `from` and `path` in the block's start marker: change them there, never here.
-<!-- context-packs:end sha256:9ca6e3aa65e7 -->
+Context packs bring shared rules and docs in from elsewhere. Each pack has a block in this file holding its rules and a table of its context docs, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. A pack's block, and everything under `docs/agents/generated/`, are generated from the folder its start marker names, and the import pack there if it has one: change them there, never here.
+<!-- context-packs:end sha256:7b25770825f6 -->
 
-<!-- context-packs:start core from=https://github.com/mjewell/agent-config.git path=packs/core ref=8cb959c8e7ba24db6ae2ac779e682b412fe9ff41 -->
+<!-- context-packs:start core path=docs/agents/core -->
 ## Collaboration
 
 I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask.
@@ -73,9 +73,9 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 
 | When | Read |
 |---|---|
-| Committing, pushing, creating a git worktree, or opening or updating a PR | `docs/agents/packs/core/git-and-prs.md` |
-| Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `docs/agents/packs/core/instruction-files.md` |
-| Writing or editing a skill (`**/SKILL.md`) | `docs/agents/packs/core/skill-authoring.md` |
-| Writing or changing tests, or fixing a bug | `docs/agents/packs/core/testing.md` |
-| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/packs/core/writing-for-humans.md` |
-<!-- context-packs:end sha256:8f5d0c4be047 -->
+| Committing, pushing, creating a git worktree, or opening or updating a PR | `docs/agents/generated/core/git-and-prs.md` |
+| Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `docs/agents/generated/core/instruction-files.md` |
+| Writing or editing a skill (`**/SKILL.md`) | `docs/agents/generated/core/skill-authoring.md` |
+| Writing or changing tests, or fixing a bug | `docs/agents/generated/core/testing.md` |
+| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/generated/core/writing-for-humans.md` |
+<!-- context-packs:end sha256:c6ea8c26323d -->
