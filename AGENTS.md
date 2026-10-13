@@ -4,7 +4,7 @@
 Context packs bring shared rules and docs in from elsewhere. Each pack has a block in this file holding its rules and a table of its context docs, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. A pack's block, and everything under `docs/agents/packs/`, are generated from the `from` and `path` in the block's start marker: change them there, never here.
 <!-- context-packs:end sha256:9ca6e3aa65e7 -->
 
-<!-- context-packs:start agent-config from=https://github.com/mjewell/agent-config.git path=context ref=ffe16c23206221ef01b810df0a8d56891f709435 -->
+<!-- context-packs:start core from=https://github.com/mjewell/agent-config.git path=packs/core ref=8cb959c8e7ba24db6ae2ac779e682b412fe9ff41 -->
 ## Collaboration
 
 I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask.
@@ -17,7 +17,7 @@ When we work through multi-point material together — code reviews, long messag
 
 ## Instruction Files
 
-When I correct you in a way that generalizes, add or update a rule, following the doc on instruction files in the agent-config context table.
+When I correct you in a way that generalizes, add or update a rule, following the doc on instruction files in the core context table.
 
 ## Working Across Repos
 
@@ -69,13 +69,13 @@ Exception: scheduled routines whose configuration I approved at creation may pus
 
 Edit only files I own. Plugins, synced skills, and installed dependencies belong to someone else: report a problem in one, and leave the file alone.
 
-## agent-config context
+## core context
 
 | When | Read |
 |---|---|
-| Committing, pushing, creating a git worktree, or opening or updating a PR | `docs/agents/packs/agent-config/git-and-prs.md` |
-| Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `docs/agents/packs/agent-config/instruction-files.md` |
-| Writing or editing a skill (`**/SKILL.md`) | `docs/agents/packs/agent-config/skill-authoring.md` |
-| Writing or changing tests, or fixing a bug | `docs/agents/packs/agent-config/testing.md` |
-| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/packs/agent-config/writing-for-humans.md` |
-<!-- context-packs:end sha256:d064fe25657d -->
+| Committing, pushing, creating a git worktree, or opening or updating a PR | `docs/agents/packs/core/git-and-prs.md` |
+| Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `docs/agents/packs/core/instruction-files.md` |
+| Writing or editing a skill (`**/SKILL.md`) | `docs/agents/packs/core/skill-authoring.md` |
+| Writing or changing tests, or fixing a bug | `docs/agents/packs/core/testing.md` |
+| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/packs/core/writing-for-humans.md` |
+<!-- context-packs:end sha256:8f5d0c4be047 -->

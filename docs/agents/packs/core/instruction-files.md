@@ -5,7 +5,7 @@ when: Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a
 
 ## Where a rule goes
 
-General rules live in mjewell/agent-config: edit them there when that repo is available, otherwise give me the exact text to add. A rule that applies from the first turn or to most tasks goes inline in `context/pack.md`. One needed only for some kind of task goes in a doc, `context/<name>.md`, which every repo gets. One that depends on a repo's stack or kind of project, where a repo might want something different, goes in an optional nested pack instead: a `context/<name>/` folder whose `pack.md` holds its rules, with front matter saying when to read it and `optional: true`, beside any docs it needs.
+General rules live in mjewell/agent-config: edit them there when that repo is available, otherwise give me the exact text to add. A rule that applies from the first turn or to most tasks goes inline in `packs/core/pack.md`. One needed only for some kind of task goes in a doc, `packs/core/<name>.md`, which every repo gets. One that depends on a repo's stack or kind of project, where a repo might want something different, goes in a pack of its own instead, which each repo installs only if it applies: a `packs/<name>/` folder whose `pack.md` holds its rules, with front matter saying when to read it, beside any docs it needs.
 
 Project-specific rules go in the repo's AGENTS.md, outside the context-packs blocks, or in its context docs, and cover only what's structurally unique to that project — its architecture, commands, and environment quirks such as a test setup that can't run — never general working rules. Instruction files state the current rule or fact, never the history of what changed.
 
