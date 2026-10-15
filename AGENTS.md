@@ -1,10 +1,9 @@
-<!-- context-packs:start header -->
+<!-- context-packs:start -->
 ## Context Packs
 
-Context packs bring shared rules and docs in from elsewhere. Each pack has a block in this file holding its rules and a table of its context docs, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. A pack's block, and everything under `docs/agents/generated/`, are generated from the folder its start marker names, and the import pack there if it has one: change them there, never here.
-<!-- context-packs:end sha256:7b25770825f6 -->
+Context packs bring shared rules and docs in from elsewhere. Each pack has its rules and a table of its context docs here, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. The packs here, and everything under `context-packs/gen/`, are generated from `context-packs/`: change them there, never here.
 
-<!-- context-packs:start core path=docs/agents/core -->
+<!-- context-packs:pack core -->
 ## Collaboration
 
 I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask.
@@ -73,9 +72,10 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 
 | When | Read |
 |---|---|
-| Committing, pushing, creating a git worktree, or opening or updating a PR | `docs/agents/generated/core/git-and-prs.md` |
-| Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `docs/agents/generated/core/instruction-files.md` |
-| Writing or editing a skill (`**/SKILL.md`) | `docs/agents/generated/core/skill-authoring.md` |
-| Writing or changing tests, or fixing a bug | `docs/agents/generated/core/testing.md` |
-| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `docs/agents/generated/core/writing-for-humans.md` |
-<!-- context-packs:end sha256:c6ea8c26323d -->
+| Committing, pushing, creating a git worktree, or opening or updating a PR | `context-packs/gen/core/git-and-prs.md` |
+| Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `context-packs/gen/core/instruction-files.md` |
+| Writing or editing a skill (`**/SKILL.md`) | `context-packs/gen/core/skill-authoring.md` |
+| Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
+| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
+<!-- context-packs:pack-end core -->
+<!-- context-packs:end sha256:6d639cd3060f -->
