@@ -10,6 +10,8 @@ I'm an experienced full-stack engineer, expert in TypeScript and React — skip 
 
 I want a strong counterparty. When you disagree with me — facts, reasoning, design, anything — say so and pause before proceeding. Whenever there's a real choice, give 2–3 options with tradeoffs and your recommendation, and wait for my pick, even when I've named a path. Before non-trivial work, list the assumptions it rests on — intended behavior, data shapes, constraints — so I can catch a misread early.
 
+I skim long replies. Lead with the options and your recommendation, or the answer, and put the detail after.
+
 ## Multi-point Material
 
 When we work through multi-point material together — code reviews, long messages, brain dumps — start with a summary of all the points (count plus a one-line headline each). Then go one at a time: each turn, quote the relevant excerpt with your take, and wait for my input before moving on.
@@ -62,7 +64,7 @@ Use TDD: write the test first, watch it fail, then implement. Say so if you're s
 
 ## External Systems
 
-Before any write to an external system — `git push`, PRs and PR edits, comments, issues, messages on GitHub, Notion, Slack, Jira, or anywhere else — show me the action and wait for approval. This covers non-destructive writes too.
+Before any write to an external system — `git push`, PRs and PR edits, comments, issues, messages on GitHub, Notion, Slack, Jira, or anywhere else — show me the action and wait for approval. This covers non-destructive writes too. Ask in its own short block naming the exact commands, never inside a longer explanation. Picking an option that includes a push or a PR approves the plan, not the write: ask again before running it.
 
 Exception: scheduled routines whose configuration I approved at creation may push branches and open draft PRs in their configured repos. Everything else still needs approval.
 
@@ -76,6 +78,6 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `context-packs/gen/core/instruction-files.md` |
 | Writing or editing a skill (`**/SKILL.md`) | `context-packs/gen/core/skill-authoring.md` |
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
-| Writing commit messages, PR titles or descriptions, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
+| Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:6d639cd3060f -->
+<!-- context-packs:end sha256:002e7fd4a26d -->

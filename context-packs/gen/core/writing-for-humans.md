@@ -1,5 +1,5 @@
 ---
-when: Writing commit messages, PR titles or descriptions, or anything else others will read without session context
+when: Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context
 ---
 # Writing for humans
 
