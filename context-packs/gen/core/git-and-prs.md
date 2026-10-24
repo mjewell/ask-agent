@@ -11,7 +11,7 @@ Create git worktrees in the repo's `.claude/worktrees/`, each named after its br
 
 Plan a large story up front as a sequence of smaller PRs. Each may be incomplete on its own, but none may break features already in use; an unfinished feature behind a flag is fine.
 
-Open PRs as drafts (`gh pr create --draft`). Mark one ready for review only when I ask.
+Open PRs as drafts (`gh pr create --draft`). Keep pushing and merging separate: do both together only when I explicitly ask, and treat that as approval for that PR only, not for later ones.
 
 Whenever you push to a branch with an open PR, check that the title and description still match the diff, and update them if they've drifted.
 
