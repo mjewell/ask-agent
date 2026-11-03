@@ -3,26 +3,16 @@ when: Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a
 ---
 # Instruction files and context docs
 
+Use the `pack-rule` skill to place and write a rule. This doc covers the choices it leaves to the repo's instructions.
+
 ## Where a rule goes
 
-General rules live in mjewell/agent-config: edit them there when that repo is available, otherwise give me the exact text to add. A rule that applies from the first turn or to most tasks goes inline in `packs/core/pack.md`. One needed only for some kind of task goes in a doc, `packs/core/<name>.md`, which every repo gets. One that depends on a repo's stack or kind of project, where a repo might want something different, goes in a pack of its own instead, which each repo installs only if it applies: a `packs/<name>/` folder whose `pack.md` holds its rules, with front matter saying when to read it, beside any docs it needs.
+A rule that fits an existing pack goes in that pack, at its source. Edit it there when that repo is available, otherwise give me the exact text to add. A rule that holds across repos but fits no existing pack goes in a new pack, which each repo installs only if it applies.
 
-Project-specific rules go in the repo's AGENTS.md, outside the context-packs block, or in its context docs, and cover only what's structurally unique to that project — its architecture, commands, and environment quirks such as a test setup that can't run — never general working rules. Instruction files state the current rule or fact, never the history of what changed.
+Project-specific rules go in the repo's own instruction file or docs. They cover only what's structurally unique to that project — its architecture, commands, and environment quirks — never general working rules.
 
-## Project context docs
+## How it's written
 
-Knowledge that applies to only some work in a project — one area of the code, one kind of task — goes in its own doc in the repo's `context-packs/` folder, not inline in AGENTS.md; AGENTS.md keeps what applies to every task there. Start each doc with front matter saying when to read it:
+Instruction files state the current rule or fact, never the history of what changed. They describe a pattern in general terms rather than pointing at files that show it, since a committed doc outlives the files it names and the pointer goes stale unnoticed. Writing used right away, such as a plan or a handoff, can point at files, since they're still where it says.
 
-```markdown
----
-when: Editing `src/billing/**`
----
-```
-
-`when` names what the agent will be doing or touching, as a path glob or a kind of task, so a row's relevance shows before its doc is read. A folder of docs needs no index: each doc gets its own row. Give a folder a `pack.md`, with the same front matter, only when an area has enough docs that one row serves better than several, since the folder then gets one row pointing at a generated index of its docs, and each such level is another read an agent can skip.
-
-The sync lists these docs in AGENTS.md, generated from their `when` lines. After adding a doc or changing its `when`, resync so the table matches:
-
-```bash
-npx context-packs
-```
+Illustrate a rule with a general case, not one taken from a particular codebase or framework, such as a named field or one language's idiom. A reader without that context can't tell what the example stands for, and an agent may treat it as the whole rule. A project's own docs, or a pack for one stack, can draw on that project or stack, since everyone reading them works in it.

@@ -12,13 +12,17 @@ I want a strong counterparty. When you disagree with me — facts, reasoning, de
 
 I skim long replies. Lead with the options and your recommendation, or the answer, and put the detail after.
 
+## Reasons, Not Verdicts
+
+Give the fact that makes something matter, not a verdict on how much it matters: "an agent copies whichever way it reads first", not "this is the most worth settling". A ranking the reader can't check, such as calling something the real problem, the key point or where the value is, adds nothing the reason doesn't, and makes it harder to weigh. When ranking is the point, as in a recommendation, name the pick and give its reason in the same sentence.
+
 ## Multi-point Material
 
 When we work through multi-point material together — code reviews, long messages, brain dumps — start with a summary of all the points (count plus a one-line headline each). Then go one at a time: each turn, quote the relevant excerpt with your take, and wait for my input before moving on.
 
 ## Instruction Files
 
-When I correct you in a way that generalizes, add or update a rule, following the doc on instruction files in the core context table.
+When I correct you in a way that generalizes, or we learn something non-trivial that a future session would otherwise have to rediscover, add or update a rule, following the doc on instruction files in the core context table.
 
 ## Working Across Repos
 
@@ -30,33 +34,33 @@ When you deliberately leave something different from what a skill, rule, or docu
 
 ## Least Power
 
-Reach for the least powerful construct that meets the _currently known_ requirement — power is what a construct _could_ express, paid for in lost guarantees and reader effort. Climb only when a concrete requirement forces it, never in anticipation; once one does, refusing to climb is as wrong as climbing early. Name what each trade buys — the guarantee a constraint gives (a pure function tests with no setup) or the requirement forcing a climb. If you can't, don't make it.
+Use the least powerful construct that meets the requirements you know about now. A construct's power is what it could express, and it costs guarantees and reader effort. Move to a more powerful one when a concrete requirement needs it, not in anticipation, and don't hold back once one does. For each choice, name what it buys: the guarantee it keeps, or the requirement that needs more power. If you can't name it, don't make the change.
 
-Least → most powerful:
+This applies to code as much as to features. The less powerful side of each pair keeps a guarantee:
 
-- constant → derived value → pure function → function with injected deps → stateful object → configurable framework/plugin system
-- immutable data → controlled mutation → unrestricted mutation
-- static data → declarative description → imperative code → code that generates code
+- a pure function over an impure one: the same input always gives the same output, so it tests without setup
+- immutable data over mutable: nothing changes it after you've read it
+- fixed behavior over a setting or plugin point: one path to read and test
 
-Deliberately not supporting something is a feature, not a TODO.
+Leaving something unsupported on purpose is a decision, not a gap to fill later.
 
-Duplication is cheaper than the wrong abstraction. While the shape is still a guess, repeat code two or three times, then extract from the call sites you actually have. Code that encodes the same fact — a repeated constant, one business rule — has no shape to guess: give it one home right away. The same goes for state: derive a value from existing state rather than storing a copy that must be kept in sync.
+Prefer duplication to the wrong abstraction. While the shape is still a guess, repeat code two or three times, then extract from the call sites you have. Code that encodes the same fact, such as a repeated constant or a business rule, has no shape to guess, so give it one home right away. Likewise, derive a value from existing state instead of storing a copy that has to be kept in sync.
 
 ## Decomposition
 
-When a change would grow an already-large class or file, put the new behavior in its own class, module, or file instead of piling onto the existing one. Pick the least powerful pattern that fits (see Least Power): an extracted collaborator before a service object, a service object before a strategy/handler. If the change exposes a natural seam in the large class, propose splitting it there — what's wrong now and what the split buys — and wait for my go-ahead; do the split in its own commit.
+When a change would grow an already-large class or file, put the new behavior in its own class, module, or file instead of piling onto the existing one. Pick the least powerful pattern that fits (see Least Power). If the change exposes a natural seam in the large class, propose splitting it there, saying what's wrong now and what the split buys, and wait for my go-ahead. Do the split in its own commit.
 
 ## Fail Loudly
 
-When an assumption breaks, surface it at the point of violation. A silent fallback — an `else` that "can't happen", a default that masks a missing case, a `rescue` that swallows — lets the system limp on and turns a loud bug into a quiet one that shows up later, far from its cause.
+When an assumption breaks, report it where it breaks. A silent fallback keeps the system running in a wrong state, so the bug shows up later and far from its cause. Silent fallbacks include an `else` for a case that "can't happen", a default that hides a missing case, and an error handler that swallows the error.
 
-For states the contract forbids, write no guard: if a response's `items` is guaranteed to be an array when present, branch on presence, not on `is_array?` too. A broken contract usually fails on its own. Assert explicitly only where a violation would otherwise pass silently or surface far from its cause.
+For states the contract rules out, don't add a guard, such as re-checking the type of a value the contract already guarantees. A broken contract usually fails on its own. Add an explicit assertion only where a violation would otherwise pass silently or show up far from its cause.
 
-Fix a bug where it originates, not where it surfaces — prevent the double-emit rather than null-checking every handler that receives it. A guard at the symptom site has to be repeated everywhere the symptom can appear, and it hides the violation that caused it.
+Fix a bug where it starts, not where it shows up: correct the code that produces the bad value rather than guarding everywhere it's used. A guard where the symptom appears has to be repeated everywhere it can appear, and it hides the cause.
 
 ## Pit of Success
 
-Make the right thing easy and the wrong thing hard. Defaults are safe; the dangerous path takes deliberate effort and a name loud enough to snag a reviewer's eye. Access control is the canonical case: queries are scoped by default, and opting out reads `unscoped`, `without_tenant_scope`, or `bypass_*`. Prefer designs where misuse won't compile or typecheck over rules people must remember: make illegal states unrepresentable.
+Make the right thing easy and the wrong thing hard. Defaults should be safe, and the dangerous path should take deliberate effort and have a name a reviewer will notice. Access control is the usual example: queries are scoped by default, and opting out reads `unscoped`, `without_tenant_scope` or `bypass_*`. Prefer designs where misuse fails to compile or typecheck over rules people have to remember, so that invalid states can't be represented.
 
 ## Testing
 
@@ -80,4 +84,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
 | Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:002e7fd4a26d -->
+<!-- context-packs:end sha256:c5f58b3241c3 -->
