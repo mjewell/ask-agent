@@ -1,7 +1,7 @@
 <!-- context-packs:start -->
 ## Context Packs
 
-Context packs bring shared rules and docs in from elsewhere. Each pack has its rules and a table of its context docs here, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. The packs here, and everything under `context-packs/gen/`, are generated from `context-packs/`: change them there, never here.
+Context packs bring shared rules and docs in from elsewhere. Each pack has its rules and a table of its context docs here, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. The paths in these tables start from the repo root. The packs here, and everything under `context-packs/gen/`, are generated from `context-packs/`: change them there, never here.
 
 <!-- context-packs:pack core -->
 ## Collaboration
@@ -26,7 +26,7 @@ When I correct you in a way that generalizes, or we learn something non-trivial 
 
 ## Working Across Repos
 
-Each repo's AGENTS.md governs the files in that repo. Before working on files in a repo whose AGENTS.md isn't already in your context, such as from a session started in the folder above the repos, read it. Paths and `When` globs in its tables are relative to that repo's root.
+Each repo's AGENTS.md governs the files in that repo, and an AGENTS.md in a folder inside it governs the files under that folder. Before working on files in a repo, such as from a session started in the folder above the repos, read every AGENTS.md that isn't already in your context, from the repo's root down to those files' folder. Paths and `When` globs in a repo's tables are relative to that repo's root.
 
 ## Deliberate Deviations
 
@@ -78,10 +78,11 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 
 | When | Read |
 |---|---|
+| Drafting a design doc, RFC, proposal, ticket or bug report for people to read | `context-packs/gen/core/docs-and-tickets.md` |
 | Committing, pushing, creating a git worktree, or opening or updating a PR | `context-packs/gen/core/git-and-prs.md` |
 | Adding or changing a rule, an instruction file (AGENTS.md, CLAUDE.md) or a context doc | `context-packs/gen/core/instruction-files.md` |
 | Writing or editing a skill (`**/SKILL.md`) | `context-packs/gen/core/skill-authoring.md` |
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
 | Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:c5f58b3241c3 -->
+<!-- context-packs:end sha256:f57306cf0c62 -->
