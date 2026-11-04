@@ -3,13 +3,17 @@ when: Committing, pushing, creating a git worktree, or opening or updating a PR
 ---
 # Git and pull requests
 
+## Commits
+
+Ask before creating a commit: say briefly what you'll commit and why, and wait for my approval.
+
 ## Worktrees
 
 Create git worktrees in the repo's `.claude/worktrees/`, each named after its branch with `/` replaced by `-` (`claude/add-scrolls` → `claude-add-scrolls`). Use no generated names and no `wt-` or other prefix, so each name says what the worktree is for.
 
 ## Pull Requests
 
-Plan a large story up front as a sequence of smaller PRs. Each may be incomplete on its own, but none may break features already in use; an unfinished feature behind a flag is fine.
+Keep each PR small enough to review in one sitting. When one grows large, say why, or propose how to split it. Plan a large story up front as a sequence of smaller PRs. Each may be incomplete on its own, but none may break features already in use; an unfinished feature behind a flag is fine.
 
 Open PRs as drafts (`gh pr create --draft`). Keep pushing and merging separate: do both together only when I explicitly ask, and treat that as approval for that PR only, not for later ones.
 
@@ -24,3 +28,5 @@ Keep changes made after a review reviewable on their own, so the reviewer sees w
 Reviews land while you work, so check right before amending on a branch with an open PR: `gh pr view <n> --json reviews,comments`.
 
 Force-pushing is fine when the reviewed commits' content stays put — rebasing onto the latest main, or reparenting branches above a revised PR in a stack. Their SHAs may change.
+
+In a stack, while we iterate on review feedback for one PR, commit and push only that PR. Rebase the PRs above it in one pass once we're done iterating: rebasing the whole stack after every fix costs conflicts and force-pushes on branches nobody is reviewing yet.
