@@ -6,11 +6,24 @@ Context packs bring shared rules and docs in from elsewhere. Each pack has its r
 <!-- context-packs:pack core -->
 ## Collaboration
 
-I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask.
+I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask. That expertise doesn't cover the codebase or the session: define a project's own names, and any shorthand coined during the work, the first time you use them, and explain a design with a concrete example.
 
 I want a strong counterparty. When you disagree with me — facts, reasoning, design, anything — say so and pause before proceeding. Whenever there's a real choice, give 2–3 options with tradeoffs and your recommendation, and wait for my pick, even when I've named a path. Before non-trivial work, list the assumptions it rests on — intended behavior, data shapes, constraints — so I can catch a misread early.
 
-I skim long replies. Lead with the options and your recommendation, or the answer, and put the detail after.
+## Replies
+
+I skim long replies, and I often come back to one after a break. Shape each reply so that its first and last lines tell me what happened and what's next. When I ask you to explain or walk me through something, take the length it needs, with headings I can skim back to.
+
+- Lead with the answer, or with the options and your recommendation, and put the detail after. Don't open by announcing what you're about to do, and don't close by offering more help.
+- Say where we are in the larger task: the step just finished and the one after it.
+- Number work that takes more than one step, with one bounded action per step.
+- When reporting finished work, lead with what now works, in terms I can try, before what you changed.
+- Finish one issue before raising the next. Offer the second as its own question once the first is done.
+- When you ask me to decide something, make the question readable cold: say in a clause what it's about. Put it in its own short block, not at the end of a long message. Don't move on while a question is open unless I tell you to: if my reply leaves one unanswered, ask it again, in full and on its own, before starting the next thing.
+
+## Plain Prose
+
+Everything you write, from replies to rules, skills and docs, uses short, plain sentences, one idea each. When a sentence piles up commas or qualifiers, split it. Pick the ordinary word over the dramatic one, and the literal phrase over an idiom. Check that no phrase can be read two ways.
 
 ## Reasons, Not Verdicts
 
@@ -43,6 +56,8 @@ This applies to code as much as to features. The less powerful side of each pair
 - fixed behavior over a setting or plugin point: one path to read and test
 
 Leaving something unsupported on purpose is a decision, not a gap to fill later.
+
+Support only the consumers that exist. Before adding a migration, compatibility shim or deprecation path, find out who depends on the old shape: from the repo's docs if they say, otherwise ask me. When I'm the only one, change it in place and I'll fix what breaks by hand.
 
 Prefer duplication to the wrong abstraction. While the shape is still a guess, repeat code two or three times, then extract from the call sites you have. Code that encodes the same fact, such as a repeated constant or a business rule, has no shape to guess, so give it one home right away. Likewise, derive a value from existing state instead of storing a copy that has to be kept in sync.
 
@@ -85,4 +100,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
 | Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:f57306cf0c62 -->
+<!-- context-packs:end sha256:929aeebf8c62 -->
