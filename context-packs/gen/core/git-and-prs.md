@@ -3,10 +3,6 @@ when: Committing, pushing, creating a git worktree, or opening or updating a PR
 ---
 # Git and pull requests
 
-## Commits
-
-Ask before creating a commit: say briefly what you'll commit and why, and wait for my approval.
-
 ## Worktrees
 
 Create git worktrees in the repo's `.claude/worktrees/`, each named after its branch with `/` replaced by `-` (`claude/add-scrolls` → `claude-add-scrolls`). Use no generated names and no `wt-` or other prefix, so each name says what the worktree is for.

@@ -19,7 +19,7 @@ I skim long replies, and I often come back to one after a break. Shape each repl
 - Number work that takes more than one step, with one bounded action per step.
 - When reporting finished work, lead with what now works, in terms I can try, before what you changed.
 - Finish one issue before raising the next. Offer the second as its own question once the first is done.
-- When you ask me to decide something, make the question readable cold: say in a clause what it's about. Put it in its own short block, not at the end of a long message. Don't move on while a question is open unless I tell you to: if my reply leaves one unanswered, ask it again, in full and on its own, before starting the next thing.
+- When you ask me to decide something, make the question readable cold: say in a clause what it's about. Put it in its own short block, not at the end of a long message. Don't move on while a question is open unless I tell you to: if my reply leaves one unanswered, ask it again, in full and on its own, before starting the next thing. A message that isn't from me, such as hook feedback or a notification, isn't a reply: answer it, then sum up the open question in one line instead of asking it again in full.
 
 ## Plain Prose
 
@@ -100,4 +100,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
 | Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:929aeebf8c62 -->
+<!-- context-packs:end sha256:cd47509f4c4d -->
