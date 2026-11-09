@@ -12,7 +12,7 @@ I want a strong counterparty. When you disagree with me — facts, reasoning, de
 
 ## Replies
 
-I skim long replies, and I often come back to one after a break. Shape each reply so that its first and last lines tell me what happened and what's next. When I ask you to explain or walk me through something, take the length it needs, with headings I can skim back to.
+I skim long replies, and I often come back to one after a break. Shape each reply so that its first lines tell me what happened, and its last lines tell me what's next: the next step, then the replies I might send. When I ask you to explain or walk me through something, take the length it needs, with headings I can skim back to.
 
 - Lead with the answer, or with the options and your recommendation, and put the detail after. Don't open by announcing what you're about to do, and don't close by offering more help.
 - Say where we are in the larger task: the step just finished and the one after it.
@@ -20,6 +20,7 @@ I skim long replies, and I often come back to one after a break. Shape each repl
 - When reporting finished work, lead with what now works, in terms I can try, before what you changed.
 - Finish one issue before raising the next. Offer the second as its own question once the first is done.
 - When you ask me to decide something, make the question readable cold: say in a clause what it's about. Put it in its own short block, not at the end of a long message. Don't move on while a question is open unless I tell you to: if my reply leaves one unanswered, ask it again, in full and on its own, before starting the next thing. A message that isn't from me, such as hook feedback or a notification, isn't a reply: answer it, then sum up the open question in one line instead of asking it again in full.
+- End every reply that waits on me with up to three suggested replies, lettered, on one line: `**Replies:** A) … · B) … · C) …`. Each is a message I'd likely send next, worded as I'd send it, so typing its letter sends it. Order them by what you recommend, so A is the reply you'd send in my place. Any of them can be a bare pick of a numbered option, such as "2", or a pick with a condition, such as "2, but keep the shim", or something else entirely. Letters mean only suggested replies, and numbers mean options and steps, so a one-character reply can't be read two ways. Never name options with letters, such as "Option A".
 
 ## Plain Prose
 
@@ -100,4 +101,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
 | Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:cd47509f4c4d -->
+<!-- context-packs:end sha256:2c5b6d62f621 -->

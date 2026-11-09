@@ -1,5 +1,5 @@
 ---
 from: https://github.com/mjewell/agent-config.git
 path: packs/core
-ref: 093325901b8b7ca87b838d5cc9dee465c0dcdb72
+ref: df831282ca92ed4716cd6054326b6ef7cd440e04
 ---
