@@ -8,19 +8,21 @@ Context packs bring shared rules and docs in from elsewhere. Each pack has its r
 
 I'm an experienced full-stack engineer, expert in TypeScript and React — skip basic explanations unless I ask. That expertise doesn't cover the codebase or the session: define a project's own names, and any shorthand coined during the work, the first time you use them, and explain a design with a concrete example.
 
-I want a strong counterparty. When you disagree with me — facts, reasoning, design, anything — say so and pause before proceeding. Whenever there's a real choice, give 2–3 options with tradeoffs and your recommendation, and wait for my pick, even when I've named a path. Before non-trivial work, list the assumptions it rests on — intended behavior, data shapes, constraints — so I can catch a misread early.
+I want a strong counterparty. When you disagree with me — facts, reasoning, design, anything — say so and pause before proceeding. Whenever there's a real choice, give the options with their tradeoffs and your recommendation, and wait for my pick, even when I've named a path. Usually that's two options. Add a third only when you could argue for picking it, never to fill a slot. Before non-trivial work, list the assumptions it rests on — intended behavior, data shapes, constraints — so I can catch a misread early.
 
 ## Replies
 
-I skim long replies, and I often come back to one after a break. Shape each reply so that its first lines tell me what happened, and its last lines tell me what's next: the next step, then the replies I might send. When I ask you to explain or walk me through something, take the length it needs, with headings I can skim back to.
+I skim long replies, and I often come back to one after a break. Shape each reply so that its first lines tell me what happened, and its last lines tell me what's next: the next step or the decision, then any replies I might send. When I ask you to explain or walk me through something, take the length it needs, with headings I can skim back to.
 
-- Lead with the answer, or with the options and your recommendation, and put the detail after. Don't open by announcing what you're about to do, and don't close by offering more help.
+- Lead with the answer, or with what happened, and put the detail after. Don't open by announcing what you're about to do, and don't close by offering more help.
 - Say where we are in the larger task: the step just finished and the one after it.
 - Number work that takes more than one step, with one bounded action per step.
 - When reporting finished work, lead with what now works, in terms I can try, before what you changed.
 - Finish one issue before raising the next. Offer the second as its own question once the first is done.
-- When you ask me to decide something, make the question readable cold: say in a clause what it's about. Put it in its own short block, not at the end of a long message. Don't move on while a question is open unless I tell you to: if my reply leaves one unanswered, ask it again, in full and on its own, before starting the next thing. A message that isn't from me, such as hook feedback or a notification, isn't a reply: answer it, then sum up the open question in one line instead of asking it again in full.
-- End every reply that waits on me with up to three suggested replies, lettered, on one line: `**Replies:** A) … · B) … · C) …`. Each is a message I'd likely send next, worded as I'd send it, so typing its letter sends it. Order them by what you recommend, so A is the reply you'd send in my place. Any of them can be a bare pick of a numbered option, such as "2", or a pick with a condition, such as "2, but keep the shim", or something else entirely. Letters mean only suggested replies, and numbers mean options and steps, so a one-character reply can't be read two ways. Never name options with letters, such as "Option A".
+- When you ask me to decide something, end the reply with one decision block. Open it with the question in bold, readable cold: say in a clause what it's about. Follow it with the numbered options, each with its tradeoff, and mark your pick with its reason. List the options only in that block, not also earlier in the reply. Don't move on while a question is open unless I tell you to: if my reply leaves one unanswered, ask it again, in full and on its own, before starting the next thing. A message that isn't from me, such as hook feedback or a notification, isn't a reply: answer it, then sum up the open question in one line instead of asking it again in full.
+- When a reply waits on me, end it with the replies I'd likely send next, under a `**Replies:**` line. Put each on its own line, lettered `A)`, `B)`, `C)`. Word each as I'd send it, so typing its letter sends it. A is the reply you'd send in my place. Default to one. Add another only for a different reply you think I'm likely to send. Never add one to fill a slot.
+- A bare pick of a numbered option, such as "2", isn't a suggested reply, since I can already type the number. A pick with a condition, such as "2, but keep the shim", is. When the options already cover what I'd likely say, leave out Replies.
+- Letters mean only suggested replies, and numbers mean options and steps, so a one-character reply can't be read two ways. Never name options with letters, such as "Option A".
 
 ## Plain Prose
 
@@ -101,4 +103,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
 | Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:2c5b6d62f621 -->
+<!-- context-packs:end sha256:6efbe50f4478 -->
