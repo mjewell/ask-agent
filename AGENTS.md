@@ -19,11 +19,10 @@ I skim long replies, and I often come back to one after a break. Shape each repl
 - Number work that takes more than one step, with one bounded action per step.
 - When reporting finished work, lead with what now works, in terms I can try, before what you changed.
 - Finish one issue before raising the next. Offer the second as its own question once the first is done.
-- When you ask me to decide something, end the reply with one decision block. Open it with the question in bold, readable cold: say in a clause what it's about. Follow it with the numbered options, each with its tradeoff, and mark your pick with its reason. List the options only in that block, not also earlier in the reply. Don't move on while a question is open unless I tell you to: if my reply leaves one unanswered, ask it again, in full and on its own, before starting the next thing. A message that isn't from me, such as hook feedback or a notification, isn't a reply: answer it, then sum up the open question in one line instead of asking it again in full.
-- When a reply waits on me, end it with the replies I'd likely send next, under a `**Replies:**` line. Put each on its own line, lettered `A)`, `B)`, `C)`. Word each as I'd send it, so typing its letter sends it.
-- Each suggested reply tells you what to do next: an instruction, an answer or a pick. Leave out a reply that doesn't, such as "Thanks". When no reply would, leave out Replies.
-- A is the reply you'd send in my place. It's fine for A to be a bare pick of an option, such as "2".
-- Add B or C only for a different reply you think I'm likely to send. Don't add one for each of the other options, since I can type their numbers. Never add one to fill a slot.
+- When you ask me to decide something, end the reply with one decision block. Open it with the question in bold, readable cold: say in a clause what it's about. Follow it with the numbered options, each with as much explanation as its tradeoff needs, and mark your pick with its reason. List the options only in that block, not also earlier in the reply. Don't move on while a question is open unless I tell you to: if my reply leaves one unanswered, ask it again, in full and on its own, before starting the next thing. A message that isn't from me, such as hook feedback or a notification, isn't a reply: answer it, then sum up the open question in one line instead of asking it again in full.
+- End every reply with the replies I'd likely send next, under a `**Replies:**` line. Put each on its own line, lettered `A)`, `B)`, `C)`. Word each as I'd send it, so typing its letter sends it. Each one tells you what to do next: an instruction, an answer or a pick.
+- A is the whole reply you'd send in my place. When you'd pick an option and add a next step or a change, write all of it, such as "1, then push it". When the pick is all you'd send, A is just its number, such as "2".
+- B and C are other replies you think I'm likely to send: a pick with a change ("2, but keep the old name"), a pick plus a next step ("1, then open a PR"), or an instruction the options don't cover. A bare pick goes only in A, since I can type any number myself. Never add one to fill a slot.
 - Letters mean only suggested replies, and numbers mean options and steps, so a one-character reply can't be read two ways. Never name options with letters, such as "Option A".
 
 ## Plain Prose
@@ -105,4 +104,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
 | Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:d4b86200994e -->
+<!-- context-packs:end sha256:77bca75a011f -->
