@@ -1,7 +1,7 @@
 <!-- context-packs:start -->
 ## Context Packs
 
-Context packs bring shared rules and docs in from elsewhere. Each pack has its rules and a table of its context docs here, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. The paths in these tables start from the repo root. The packs here, and everything under `context-packs/gen/`, are generated from `context-packs/`: change them there, never here.
+Context packs bring shared rules and docs in from elsewhere. Each pack has its rules and a table of its context docs here, and a doc may hold a table of its own. Before starting work that a row in any of these tables matches, read its doc. The paths in these tables start from the repo root. Look for a path a doc names in the doc's folder first, then from the repo root. The packs here, and everything under `context-packs/gen/`, are generated from `context-packs/`: change them there, never here.
 
 <!-- context-packs:pack core -->
 ## Collaboration
@@ -104,4 +104,4 @@ Edit only files I own. Plugins, synced skills, and installed dependencies belong
 | Writing or changing tests, or fixing a bug | `context-packs/gen/core/testing.md` |
 | Writing commit messages, PR titles or descriptions, changelog entries, READMEs, or anything else others will read without session context | `context-packs/gen/core/writing-for-humans.md` |
 <!-- context-packs:pack-end core -->
-<!-- context-packs:end sha256:77bca75a011f -->
+<!-- context-packs:end sha256:e2ad448e1203 -->
