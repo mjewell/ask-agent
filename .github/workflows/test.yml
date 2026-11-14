@@ -13,7 +13,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, python: '3.9' }   # the minimum version the README claims
+          # The minimum version the README claims, kept because macOS still ships 3.9 as its
+          # system python3. Pinned to 24.04 because setup-python has no 3.9 build for 26.04,
+          # which is what ubuntu-latest became in November 2026.
+          - { os: ubuntu-24.04, python: '3.9' }
           - { os: ubuntu-latest, python: '3.13' }
           - { os: macos-latest, python: '3.13' }
     runs-on: ${{ matrix.os }}
