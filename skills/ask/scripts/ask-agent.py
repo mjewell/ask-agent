@@ -159,7 +159,7 @@ def find_answer(job):
             text = event.get("result")
         elif event.get("event") == "result" and isinstance(event.get("result"), dict):
             result = event["result"]
-            if result.get("status") == "ERROR":
+            if result.get("status") == "ERROR" or "finished_reason" in result:
                 answer = None
                 continue
             text = result.get("response")
