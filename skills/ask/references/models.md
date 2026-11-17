@@ -1,6 +1,6 @@
 # Model and effort choices
 
-**User-maintained. Verified 2026-10-17 against provider documentation.**
+**User-maintained. Verified 2026-11-17 against provider documentation.**
 
 Prices are approximate API cost per million tokens and may be out of date. They exist to compare relative
 cost between models, which changes far less than the absolute figures, not to predict a bill — a
@@ -15,8 +15,9 @@ working around it.
 
 | Model | In $/MTok | Out $/MTok | Effort options | Use it for |
 | --- | --- | --- | --- | --- |
-| `gpt-6.1-sol` | 2.0 | 10.0 | low, medium, high, xhigh, max, ultra | Flagship general model for complex professional work. The default choice. |
-| `gpt-6-astra` | 10.0 | 50.0 | low, medium, high, xhigh, max, ultra | Most capable; reach for it only when `sol` is genuinely not enough. |
+| `gpt-6.2-sol` | 2.0 | 10.0 | low, medium, high, xhigh, max, ultra | Codex's go-to model for coding and everyday work. The default choice. |
+| `gpt-6.1-terra` | 1.0 | 5.0 | low, medium, high, xhigh, max, ultra | Efficient model, strongest at visual understanding and computer use. Half Sol's price. |
+| `gpt-6.2-astra` | 8.0 | 40.0 | low, medium, high, xhigh, max, ultra | Most capable; reach for it only when `sol` is genuinely not enough. |
 | `gpt-6-luna` | 0.1 | 0.5 | low, medium, high, xhigh, max | Cost-sensitive, high-volume work: summaries, extraction, quick answers. |
 
 ## Claude Code (`claude --model ID --effort LEVEL`)
@@ -25,7 +26,7 @@ working around it.
 | --- | --- | --- | --- | --- | --- |
 | `claude-sonnet-5-5` | `sonnet` | 2.0 | 10.0 | low, medium, high, xhigh, max | Efficient routine work. |
 | `claude-opus-5-5` | `opus` | 4.0 | 20.0 | low, medium, high, xhigh, max | Everyday complex work. Roughly 2× Sonnet's usage. Defaults to `medium` effort. |
-| `claude-fable-5-1` | `fable` | 10.0 | 50.0 | low, medium, high, xhigh, max | Hardest, longest-running tasks. Requires usage credits. |
+| `claude-fable-5-2` | `fable` | 8.0 | 40.0 | low, medium, high, xhigh, max | Hardest, longest-running tasks. Requires usage credits on some plans. |
 | `claude-haiku-5-5` | `haiku` | 0.1 | 0.5 | low, medium, high, xhigh, max | Fastest option for quick answers. Prompts over 100K tokens cost 5× ($0.50 / $2.50). |
 
 ## agy (Gemini)
