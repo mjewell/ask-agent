@@ -1,7 +1,7 @@
 # agy CLI (Gemini)
 
-**User-maintained, verified 2026-09-19.** Short by design — it will lag the CLI. Run `agy --help` when you
-need a flag this file does not cover, or when something here does not work.
+**User-maintained, verified 2026-11-17 against agy 1.5.10.** Short by design — it will lag the CLI. Run
+`agy --help` when you need a flag this file does not cover, or when something here does not work.
 
 The binary is `agy`, not `gemini`.
 
@@ -52,18 +52,21 @@ Treat it as unverified; use `--print` until it is documented.
 | --- | --- | --- |
 | `--mode plan` | Plans without applying edits | Reviews, audits, analysis. The default choice. |
 | `--mode accept-edits` | Applies edits without prompting | Implementation tasks. |
+| `--mode auto` | Applies edits in the workspace and runs commands in the terminal sandbox. A reviewer model decides on commands that would leave the sandbox. | Implementation tasks that run commands. Not offered on every account; Gemini Enterprise accounts don't get it. |
 | `--dangerously-skip-permissions` | Auto-approves every tool request | Only inside a container or VM. |
 
-`--sandbox` is a separate boolean that enables terminal restrictions, and composes with a mode. Without any
-of these the session runs in `request-review`, which waits for an approval nobody is there to give — so
-always pass a mode under Ask Agent.
+`--sandbox` is a separate boolean that enables terminal restrictions, and composes with a mode.
+
+Always pass a mode under Ask Agent. Since agy 1.5.7, a run without `--mode` starts in Auto mode where the
+account offers it. Auto applies edits, so a review run would change files. Elsewhere the run starts in
+Default mode, which waits for an approval nobody is there to give.
 
 ## Other flags worth knowing
 
 | Flag | Effect |
 | --- | --- |
 | `--add-dir PATH` | Adds a directory to the workspace. Repeatable. |
-| `--effort low\|medium\|high` | Reasoning effort. Narrower than other providers — three levels only. |
+| `--effort low\|medium\|high\|xhigh\|max` | Reasoning effort. |
 | `--conversation ID` | Resumes a previous conversation. |
 | `-c`, `--continue` | Continues the most recent conversation. Avoid under Ask Agent; name the id explicitly. |
 | `--json-schema` | Enforces a structured final result. |
@@ -104,7 +107,8 @@ id up front, so recovery is the only route to one.
 
 agy emits a single `result` event carrying the complete final response, so no aggregation is needed. A
 failed turn emits that same event with `"status": "ERROR"` and an `error` field, so a non-empty `response`
-is not proof of an answer.
+is not proof of an answer. A turn that ended early also carries a `finished_reason`: `print_timeout`,
+`interrupted` or `error`. The field is absent when the turn finished normally.
 
 The log is one JSON object per line. The `result` event also carries status, turn count, duration, and
 token usage:
