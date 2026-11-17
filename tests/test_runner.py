@@ -203,6 +203,8 @@ class RunnerTests(unittest.TestCase):
             ([{'type': 'result', 'is_error': True, 'result': 'Error'}], None),
             ([{'type': 'result', 'subtype': 'error_max_turns', 'result': 'Incomplete'}], None),
             ([{'event': 'result', 'result': {'status': 'ERROR', 'response': 'Error'}}], None),
+            ([{'event': 'result', 'result': {'status': 'SUCCESS', 'response': 'Cut off', 'finished_reason': 'print_timeout'}}], None),
+            ([{'event': 'result', 'result': {'status': 'SUCCESS', 'response': 'Cut off', 'finished_reason': 'interrupted'}}], None),
             ([{'type': 'item.completed', 'item': None}, {'type': 'result', 'result': {'unexpected': True}}], None),
             ([{'type': 'item.completed', 'item': {'type': 'agent_message', 'text': 'Before failure'}},
               {'type': 'turn.failed', 'error': {'message': 'model not supported'}}], None),
